@@ -5,6 +5,8 @@ __pycache__/
 data/*.sqlite3*
 data/uploads/
 .env
+.env.*
+!.env.example
 test-results/
 node_modules/
 playwright-report/

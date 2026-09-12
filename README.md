@@ -1,85 +1,152 @@
-# 地衡 Landwise · AI 輔助估價審查工作台
+# 地衡 Landwise · PaddleOCR + Amazon Bedrock
 
-以新北市金山區商業用地範例為基礎的本機 MVP。串連地價區段勘查表（表 1）、影響地價區域因素分析明細表（表 5-2）、比較法調查估價表（表 4），提供資料核對、矩陣計算、跨表審查、修正與匯出。
+本機估價審查工作台。上傳的 PDF 由 **PaddleOCR 在 CPU 辨識**；需要 AI 整理欄位時，使用 **Amazon Bedrock**。計算、級距與矩陣仍由確定性規則引擎執行，AI 回傳草稿須人工確認。
 
-## 快速啟動
+## 目前專案架構
 
-此工作區的 Anaconda Python 已具備執行依賴，PowerShell 執行：
+目前由本機執行網站、OCR、規則計算及資料保存，AWS 提供模型推論。圖中的箭頭表示執行流程；應用層透過 ports 使用基礎設施，由 `bootstrap.py` 注入具體實作。
 
-```powershell
-.\start.ps1
+```mermaid
+flowchart TB
+    USER["使用者瀏覽器<br/>上傳 PDF、核對草稿、審查與匯出"]
+
+    subgraph LOCAL["本機：DDD 模組化單體"]
+        HTTP["介面層 interfaces<br/>FastAPI 路由與 HTTP 回應"]
+        APP["應用層 application<br/>案件用例、PDF 匯入、AI 草稿與來源驗證"]
+        DOMAIN["領域層 domain<br/>Case、Factor、Evidence<br/>級距、矩陣與審查計算"]
+
+        subgraph INFRA["基礎設施層 infrastructure"]
+            OCR["PDF adapter<br/>PDFium 轉圖 → PaddleOCR<br/>CPU 子程序辨識"]
+            AI["AI adapter<br/>Bedrock Converse<br/>快取、節流與有限重試"]
+            REPO["Repository adapter<br/>SQLite 與本機檔案存取"]
+        end
+
+        DB[("SQLite<br/>案件、基準版本、修訂紀錄<br/>OCR 文字與抽取快取")]
+        FILES["本機 PDF 檔案<br/>data/uploads/"]
+    end
+
+    subgraph CLOUD["AWS：us-west-2"]
+        MODEL["Amazon Bedrock<br/>qwen.qwen3-32b-v1:0"]
+    end
+
+    USER <--> HTTP
+    HTTP --> APP
+    APP --> DOMAIN
+    APP -->|PdfReader| OCR
+    APP -->|FieldExtractor| AI
+    APP -->|ReviewRepository| REPO
+    REPO --> DB
+    REPO --> FILES
+    AI -->|確認可上雲後：OCR 文字與因素定義| MODEL
+    MODEL -->|欄位草稿與來源行號| AI
 ```
 
-開啟 **http://127.0.0.1:8000**，按 `Ctrl+C` 停止服務。啟動腳本依序使用 `.venv`、使用者目錄下的 Anaconda、PATH 中的 Python。若 PowerShell 的執行原則禁止腳本，可直接執行：M
+上傳先走 PaddleOCR，再保存原始 PDF、辨識文字與待確認案件。AI 抽取由使用者另外啟動，預覽不修改案件；套用後仍須人工核對，估價判定由領域規則引擎執行。目前保留單一比較標的，尚未部署 AWS 主機。
 
-```powershell
-& "$env:USERPROFILE\anaconda3\python.exe" run.py
-```
-
-其他環境（Python 3.11 以上）：
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe run.py
-```
-
-Linux / macOS：
+## 快速開始（macOS / Linux，Python 3.12）
 
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python run.py
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements-ocr.txt
+cp .env.example .env
 ```
 
-前端為原生 JavaScript / CSS，由 FastAPI 同源提供，**執行應用不需要 npm、前端編譯、雲端金鑰或模型**。套件 `package.json` 僅用於瀏覽器測試。首次啟動自動建立兩份可編輯的案例，資料存於 `data/review.sqlite3`，上傳文件存於 `data/uploads/`。應用預設只監聽本機。
+編輯 `.env` 的 `AWS_PROFILE` 與 `REFERENCE_DATA_DIR`，然後：
 
-## 已完成的功能
-
-- 案件工作台：搜尋、建立、PDF / JSON 匯入與永久保存。
-- 三表審查：19 個個別因素、28 個區域因素；各因素的級距、分類、矩陣、正負方向、基準版本與來源頁碼。
-- 核對資料：比準地與比較標的值、表 5-2 原填等級、修正率、確認狀態、免比較及特殊調整理由。
-- 計算：原填細項加總、基準重算、跨表抄填、調整率絕對值加總、日期調整單價與試算價格。
-- 原文對照：PDF 頁面切換、抽取文字與引用；原始 PDF 不被覆寫。
-- 修訂：採用建議後重新審查，每次保存留下完整 JSON 快照，案件版本防止過期操作覆蓋資料。
-- 基準庫：查看矩陣與級距，JSON 編輯並建立不可覆寫的新版本；案件自行選擇使用版本。
-- 匯出：CSV、案件 JSON、可列印審查報告、可列印整理書表。瀏覽器列印可另存 PDF。
-- 可選本機 AI：Ollama 抽取預覽、原文引用存在性檢查、逐項勾選套用，套用後仍待人工核對。
-
-## 五分鐘展示
-
-1. 開啟「金山區商業用地｜原始範例」。19 個個別因素合計為 13%；有原基準疑點的項目仍保持待處理。
-2. 返回工作台，開啟「錯誤示範」，點擊「疑似錯誤」。此副本明確標示人工植入，原 PDF 未修改。
-3. 查看面前道路寬度：18 m 對 6 m，矩陣應為 +5%，測試副本誤填 +2%。開啟基準矩陣，再採用建議。
-4. 查看跨表區域修正率：表 5-2 為 0%，表 4 測試值為 2%；採用建議後檢核更新。
-5. 在「資料核對」補回學校距離 150 m，確認並儲存。依序處理合計與其他明確差異。
-6. 開啟修訂紀錄查看快照，匯出審查報告。待確認事項仍會列出，不假造全部通過。
-7. 另外上傳原始 `查估書表範本.pdf`，展示實際版型抽取與未確認草稿。其初始狀態與人工整理的範例不同。
-
-## PDF 辨識範圍
-
-`pypdf` 保留版面抽取文字，解析器針對提供的單一比較標的表格：
-
-- 表 4：19 項個別因素的兩側條件與修正率，以及案號、基準日、標的、區段、計算欄位。
-- 表 5-2：28 項原填等級、修正率及總修正數，僅在可辨認完整 28 列時按此範本順序對應。
-- 表 1：可明確解析的土地管制、道路、自然條件與工商描述。兩側同區段才共用區域條件；跨欄的設施距離與勾選符號保留人工核對。
-
-無法可靠抽取時保留空白。掃描 PDF 沒有 OCR；文字型 PDF 的抽取也須人工確認。原文定位目前精確到頁，未實作儲存格框選。
-
-## 設定可選的本機 AI
-
-先自行安裝 [Ollama](https://ollama.com/) 與適合繁體中文文件的模型；本程式不自動下載大型模型。以 `ollama list` 查看已安裝模型名稱，然後設定：
-
-```powershell
-$env:OLLAMA_MODEL = '你的已安裝模型名稱'
-.\start.ps1
+```bash
+./start.sh
 ```
 
-在案件的「資料核對」點選「本機 AI 抽取」。程式呼叫固定的 `http://127.0.0.1:11434/api/chat`，使用 JSON schema 輸出、溫度 0，逾時 90 秒。無模型、連線失敗、沒有有效引用時會明確回報，原案件保持不變。長文件超過 60,000 字元請拆分。
+開啟 http://127.0.0.1:8000 。`start.sh` 會載入本機 `.env`；直接執行 `python run.py` 則使用該 shell 已存在的環境變數。首次 OCR 會下載官方模型至使用者的 PaddleX 快取目錄，需可連線網路；下載內容是模型，PDF 由本機處理。
 
-AI 用於抄錄與語意對應，計算由規則引擎處理。驗證引用存在於文字只代表引用可找到，**不保證模型欄位對應正確**；使用者需逐列核對。文件內容僅作資料，模型無工具、沒有權限執行文件中的指令。
+原生 JavaScript / CSS 由 FastAPI 提供，不需前端建置。`npm` 僅用於 Playwright 測試與簡報工具。
 
-Ollama API 依據：[官方 Chat API 文件](https://docs.ollama.com/api/chat)。本專案未內建雲端 API，也不會在未設定時把版型解析稱作模型推論。
+## AWS 身分與模型
+
+AWS 憑證使用 SDK 標準查找鏈，不寫進程式或提交 Git。可使用臨時 session credentials、AWS CLI profile、EC2 instance role，或 SDK 支援的 Bedrock API key。
+
+```bash
+aws configure --profile landwise-hackathon
+# 臨時憑證另外需要 session token；請使用 AWS CLI 或受保護的 ~/.aws/credentials 設定。
+aws sts get-caller-identity --profile landwise-hackathon
+```
+
+本地 `.env` 僅需選擇 profile 與非機密設定：
+
+```bash
+AWS_PROFILE=landwise-hackathon
+AWS_DEFAULT_REGION=us-west-2
+BEDROCK_MODEL_ID=qwen.qwen3-32b-v1:0
+BEDROCK_ENABLED=true
+```
+
+若使用 Bedrock API key，可在啟動 shell 設定 `AWS_BEARER_TOKEN_BEDROCK`；不要將其加入 Git。使用 EC2 role 時移除 `AWS_PROFILE`，讓 SDK 使用 instance role。模型須支援 Converse，並在所選區域具有實際呼叫權限。
+
+預設使用區域內的 `qwen.qwen3-32b-v1:0`。此版本拒絕跨區 inference profile，避免隱含跨區路由。`/api/health` 顯示提供者、模型與區域；設定成功不代表憑證仍有效，實際呼叫錯誤會顯示可處理的訊息。
+
+## 使用流程
+
+1. 建立案件，或上傳 20 MB 以內、最多 200 頁的 PDF。
+2. PaddleOCR 將每頁轉為文字、文字框座標與信心值，保存原始 PDF。
+3. 已知版型解析器盡可能建立欄位草稿；無法對應時保留待確認。
+4. 如需 AI，按「AWS AI 抽取」，確認此文件符合競賽上雲規範後，將辨識文字送至 Bedrock。
+5. AI 使用案件選定的基準整理欄位；引用與所述值必須能在 OCR 原文中找到。勾選套用後仍需人工核對。
+6. 規則引擎核對等級、修正率、加總與跨表數值；每次修改保存版本及快照。
+7. 匯出 CSV、JSON、可列印審查報告與整理書表。
+
+內建案例是 `app/domain/sample.py` 的人工整理資料，並非現場 AI 推論結果。提供範例的文字層只用於內建原文與既有解析器回歸測試；**使用者的 PDF 上傳入口固定走 PaddleOCR，不會靜默改用文字層抽取。**
+
+## DDD 結構
+
+以「估價審查」為一個 bounded context，採模組化單體與 ports/adapters：
+
+```text
+app/
+  domain/          Case、Factor、Evidence、Totals、規則及審查計算
+  application/     案件操作、PDF 匯入、AI 草稿、來源驗證、介面契約
+  infrastructure/  PaddleOCR、Bedrock、SQLite、檔案與環境設定
+  interfaces/      FastAPI HTTP 路由、CSV / HTML 等輸出
+  bootstrap.py     注入具體 PDF / AI / repository adapters
+  main.py          ASGI 入口
+static/            操作介面
+scripts/           合成資料整合測試、教學與簡報工具
+tests/             領域、應用流程、介接契約及選用真實 OCR 測試
+```
+
+領域與應用層不依賴 FastAPI、Paddle、AWS 或 SQLite。舊的 `app.models` / `engine` / `rules` 等保留相容匯入，實作已搬入上述各層。詳見 [架構與部署邊界](docs/architecture.md)。
+
+## 資料與設定
+
+預設案件、版本、辨識文字與抽取快取存於 `data/review.sqlite3`，上傳檔案存於 `data/uploads/`。`APP_DATA_DIR` 可指定資料目錄；同一台主機的服務程序須共用此目錄，才能共用 Bedrock 節流與快取。
+
+`REFERENCE_DATA_DIR` 預設為相鄰的 `../aws`，支援其中 `範例/`、`其他參考資料/` 的既有目錄配置；找不到時才檢查專案根目錄。原始規範及案例 PDF 不會被複製進 Git。
+
+| 設定 | 預設 | 用途 |
+| --- | --- | --- |
+| `AWS_DEFAULT_REGION` | `us-west-2` | 也接受優先的 `AWS_REGION`；僅允許競賽指定兩區 |
+| `BEDROCK_MODEL_ID` | `qwen.qwen3-32b-v1:0` | 區域內 Converse 模型 |
+| `BEDROCK_ENABLED` | `true` | `false` 關閉雲端 AI，仍可使用 OCR 與規則 |
+| `BEDROCK_MIN_INTERVAL` | `1.1` 秒 | 所有模型嘗試間隔，包含重試 |
+| `OCR_DPI` | `180` | PDF 轉圖片解析度（72–300） |
+| `OCR_CPU_THREADS` | `2` | CPU 執行緒數（1–8） |
+| `OCR_TIMEOUT_SECONDS` | `300` | 每份 PDF 的辨識逾時，首次下載可暫提高 |
+| `OCR_DETECTION_MODEL` | `PP-OCRv5_mobile_det` | 文字偵測模型 |
+| `OCR_RECOGNITION_MODEL` | `PP-OCRv5_server_rec` | 文字辨識模型 |
+| `SEED_EXAMPLES` | `true` | AWS 環境應設 `false`，只匯入符合規範的資料 |
+
+OCR 在獨立子程序執行；超過時間會終止，不把 AWS 憑證環境變數傳給子程序。每頁限制最大約 1,400 萬像素。長文件或密集表格請拆分；AI 輸入上限為 60,000 字元，模型截斷輸出不會成為草稿。
+
+## 競賽環境
+
+依相鄰 aws 資料夾的 2026-07-22 規範：
+
+- 預設 `us-west-2`；亦可設定 `us-east-1`。
+- OCR 使用 CPU，不依賴配額為 0 的 EC2 G / P GPU 系列。
+- Bedrock 每次呼叫及重試都通過跨程序鎖與持久化節流；SDK 自動重試已關閉。相同 PDF / OCR 設定及相同 AI 輸入 / 模型 / 基準 / prompt 版本可重用快取。
+- 呼叫前須確認資料符合規範。禁止個資、財務資訊等受限資料；附件價格資料的適用界線須由主辦說明，程式中的勾選不是自動合規認證。
+- 本次沒有建立 AWS 主機、S3、RDS 或對外服務。未來部署須符合私有 S3、必要 Security Group 權限與非公開資料庫等要求。
+
+目前的協調機制適用於**單台主機、共用 SQLite 與鎖檔**。多台 EC2 各自儲存的資料庫無法共用節流；擴充時需改用集中式請求工作程序。應用程式也無法限制同帳號中其他程式自行呼叫 Bedrock。
 
 ## 基準及計算設計
 
@@ -105,41 +172,47 @@ Ollama API 依據：[官方 Chat API 文件](https://docs.ollama.com/api/chat)�
 
 ## 測試
 
-```powershell
-& "$env:USERPROFILE\anaconda3\python.exe" -m pytest -q
+一般測試不下載 OCR 模型、不呼叫 AWS：
+
+```bash
+.venv/bin/python -m pytest -q
 ```
 
-或使用安裝依賴後的 `python -m pytest -q`。涵蓋真實 PDF、級距邊界、區域 / 個別區分、正負矩陣、缺值、特殊調整、錯誤案例、API 修訂、文件匯入、JSON / CSV / HTML 匯出與基準版本。
+外部範例 PDF 未安裝時，兩項範例檔測試會明確跳過。合成掃描 PDF 已隨測試提供。
 
-瀏覽器端測試（選用）：
+執行真實 CPU OCR：
 
-```powershell
-npm install
+```bash
+RUN_OCR_TESTS=1 .venv/bin/python -m pytest tests/test_paddle.py -q
+```
+
+走完整 HTTP 上傳、PaddleOCR、Bedrock 預覽、來源驗證及快取流程：
+
+```bash
+.venv/bin/python -m scripts.smoke_integrations --bedrock --profile landwise-hackathon
+```
+
+此命令只使用 `tests/fixtures/synthetic-scanned.pdf`，不含真實案件或價格。測試資料庫放在暫存目錄並自動清除，結果存於被 Git 忽略的 `.analysis/integration-smoke.json`。
+
+瀏覽器測試使用真實 PaddleOCR；Bedrock 介面流程使用合成回應，不呼叫雲端：
+
+```bash
+npm ci
+npx playwright install chromium
 npm run test:e2e
 ```
 
-測試使用已安裝的 Edge，或設定 `PLAYWRIGHT_CHANNEL=chrome`。測試啟動獨立服務與資料庫；可用 `TEST_PYTHON` 指定 Python 執行檔。
+已安裝 Google Chrome 時，可改用 `PLAYWRIGHT_CHANNEL=chrome npm run test:e2e`。
 
-## 程式結構
+## 目前功能邊界
 
-```text
-app/
-  main.py        FastAPI 路由、文件、匯出、基準驗證
-  models.py      案件、因素、證據與總計資料模型
-  engine.py      級距、矩陣、跨表與計算審查
-  rules.py       47 項範例基準轉錄
-  extraction.py  保留版面的 PDF 解析與可選 Ollama 抽取
-  sample.py      原始及人工植入錯誤案例
-  store.py       SQLite、版本與修訂快照
-static/          不需編譯的網頁介面
-tests/           Python 測試
-e2e/             瀏覽器流程測試
-run.py           本機啟動入口
-start.ps1        Windows 啟動腳本
-```
+既有計算仍是金山商業用地、單一比較標的範例。PaddleOCR 能辨識更多 PDF，不代表已完成不同案件的因素規則、三筆比較標的模型或官方表格套印。保留 OCR 框座標供後續定位，目前介面仍以頁與文字引用對照。AI 引用存在不保證左右欄對應正確。
 
-API 文件：執行後開啟 `http://127.0.0.1:8000/docs`。`APP_DATA_DIR` 可指定資料目錄，`PORT` 可指定服務埠。
+沒有多人帳號、正式簽章、分散式任務佇列或正式 AWS 部署；預設僅監聽 `127.0.0.1`。
 
-## 後續擴充邊界
+## 實作依據
 
-目前未包含多筆比較標的加權、OCR、地圖量距、外部設施資料、法規即時同步、官方表格套印、多人帳號與權限，或正式審核簽章。標準擴充不需要重新訓練模型；可從新增規則版本和其他版型解析器開始。正式部署則需另外加入登入、權限、檔案處理隔離及備份。
+- [PaddleOCR Python 使用方式與輸出結構](https://www.paddleocr.ai/main/en/quick_start.html)
+- [PaddleOCR PP-OCRv5 多語系模型](https://paddlepaddle.github.io/PaddleOCR/latest/version3.x/algorithm/PP-OCRv5/PP-OCRv5_multi_languages.html)
+- [AWS Bedrock Converse API](https://docs.aws.amazon.com/boto3/latest/reference/services/bedrock-runtime/client/converse.html)
+- [Bedrock API key 使用方式](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-use.html)

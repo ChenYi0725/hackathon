@@ -7,6 +7,7 @@ from app.engine import review
 from app.extraction import parse_case, read_pdf
 from app.rules import default_rules
 from app.sample import sample_case
+from app.infrastructure.settings import Settings
 
 
 def main():
@@ -14,7 +15,7 @@ def main():
     output = root / 'examples' / 'walkthrough'
     output.mkdir(parents=True, exist_ok=True)
     rules = default_rules()
-    draft = parse_case(read_pdf((root / '查估書表範本.pdf').read_bytes()), '教學練習｜PDF 抽取草稿')
+    draft = parse_case(read_pdf(Settings().reference('sample').read_bytes()), '教學練習｜PDF 抽取草稿')
     reference = sample_case()
     reference.title = '教學對照｜原始範例審查答案'
     reference.notes += ' 本檔為教學對照資料，非主辦方官方標準答案；保留基準疑點與價格精度待確認項目。'
