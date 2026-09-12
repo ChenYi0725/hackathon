@@ -43,7 +43,7 @@
 
 | ID | 優先序 | 工作 | 負責區塊 | 前置 | 狀態 | 負責人／PR |
 | --- | --- | --- | --- | --- | --- | --- |
-| DDD-00 | P0 | 共用資料與 port 契約定案 | Application＋Domain | 無 | 待審查 | Codex／`codex/confirmation-contracts` |
+| DDD-00 | P0 | 共用資料與 port 契約定案 | Application＋Domain | 無 | 待審查 | Codex／[PR #4](https://github.com/ChenYi0725/hackathon/pull/4) |
 | DDD-01 | P0 | 住宅規則、多比較標的與精度模型 | Domain | DDD-00 | 待認領 | — |
 | DDD-02 | P0 | 可追溯的確定性計算 | Domain | DDD-01 | 待認領 | — |
 | DDD-03 | P0 | 舊案件相容與資料遷移 | Infrastructure | DDD-01 | 待認領 | — |
