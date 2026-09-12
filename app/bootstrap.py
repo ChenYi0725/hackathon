@@ -1,15 +1,27 @@
 """Composition root: wire concrete adapters into application-owned ports."""
 from app.application.services import ReviewService
+from app.application.rag import RagService
+from app.application.agentic_rag import AgenticRagService
+from app.infrastructure.bedrock_agent import BedrockAgentModel
+from app.infrastructure.retrieval import LocalEvidenceRetriever
+from app.infrastructure.bedrock_rag import BedrockEvidenceAnswerer
 from app.infrastructure.bedrock import BedrockFieldExtractor
 from app.infrastructure.paddle_pdf import PaddlePdfReader
 from app.infrastructure.persistence import SQLiteReviewRepository
 from app.infrastructure.text_pdf import read_pdf
+from app.infrastructure.form_exports import TemplateFormRenderer
 
 
-def build_service(settings, pdf=None, ai=None):
+def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None, agent_model=None):
     repository = SQLiteReviewRepository(settings.data_dir)
     repository.initialize()
-    return ReviewService(repository, pdf or PaddlePdfReader(settings, repository), ai or BedrockFieldExtractor(settings, repository))
+    pdf_reader = pdf or PaddlePdfReader(settings, repository)
+    transport = BedrockFieldExtractor(settings, repository)
+    retrieval = retriever or LocalEvidenceRetriever(repository)
+    agent = AgenticRagService(repository, retrieval, agent_model or BedrockAgentModel(transport))
+    rag = RagService(repository, pdf_reader, retrieval, answerer or BedrockEvidenceAnswerer(transport), agent=agent)
+    return ReviewService(repository, pdf_reader, ai or transport, rag=rag,
+                         renderer=TemplateFormRenderer(settings.form_template_dir))
 
 
 def sample_document(settings):

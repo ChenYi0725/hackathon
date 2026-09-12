@@ -1,15 +1,36 @@
 """Valuation use cases. No imports of FastAPI, AWS, Paddle or SQLite."""
 from app.application.drafts import parse_case
+from app.application.rag import RagService
 from app.application.ports import FieldExtractor, PdfReader, ReviewRepository, RevisionConflict
 from app.domain.engine import review
+from app.domain.confirmation import invalidate_confirmations
 from app.domain.models import Case
 from app.domain.rule_validation import validate_ruleset
 from app.domain.sample import sample_case
+from app.application.export_contracts import ExportUnavailable, FormRenderer
 
 
 class ReviewService:
-    def __init__(self, repository: ReviewRepository, pdf: PdfReader, ai: FieldExtractor):
+    def __init__(self, repository: ReviewRepository, pdf: PdfReader, ai: FieldExtractor, rag: RagService | None = None, renderer: FormRenderer | None = None):
         self.repository, self.pdf, self.ai = repository, pdf, ai
+        self.rag = rag
+        self.renderer = renderer
+
+    def export_document(self, case_id, kind, revision, generated_at):
+        case = self.repository.get_case(case_id)
+        if case.revision != revision:
+            raise RevisionConflict('案件已更新，請重新載入後再匯出。')
+        if self.renderer is None:
+            raise ExportUnavailable('書表輸出尚未設定。')
+        rules = self.repository.get_rules(case.ruleset_id)
+        result = review(case, rules)
+        try:
+            artifact = self.renderer.render(case.model_copy(deep=True), result, rules, kind, generated_at)
+        except (ImportError, OSError) as error:
+            raise ExportUnavailable('書表產製失敗；請檢查輸出套件、模板與中文字型設定。') from error
+        if self.repository.get_case(case_id).revision != revision:
+            raise RevisionConflict('產製期間案件已更新，請重新匯出。')
+        return artifact
 
     def seed_examples(self, document=None):
         if self.repository.list_cases():
@@ -41,7 +62,11 @@ class ReviewService:
 
     def save_case(self, case: Case, *, new=False):
         self.validate_case(case)
-        saved = self.repository.save_case(case, '建立或匯入案件' if new else '儲存欄位與重新審查', new=new)
+        previous = None if new else self.repository.get_case(case.id)
+        if previous is not None and previous.revision != case.revision:
+            raise RevisionConflict('案件已更新，請重新載入。')
+        candidate = invalidate_confirmations(previous, case)
+        saved = self.repository.save_case(candidate, '建立或匯入案件' if new else '儲存欄位與重新審查', new=new)
         return self.payload(saved)
 
     def create_sample(self, kind, document=None):
@@ -64,6 +89,7 @@ class ReviewService:
 
     def fix(self, case_id, check_id, revision):
         case = self.repository.get_case(case_id)
+        previous = case.model_copy(deep=True)
         if revision != case.revision:
             raise RevisionConflict('案件已更新，請重新載入。')
         result = review(case, self.repository.get_rules(case.ruleset_id))
@@ -81,7 +107,7 @@ class ReviewService:
             setattr(case.totals, item['total_field'], item['expected'])
         else:
             raise ValueError('請手動處理此項。')
-        return self.payload(self.repository.save_case(case, '採用建議：' + item['title']))
+        return self.payload(self.repository.save_case(invalidate_confirmations(previous, case), '採用建議：' + item['title']))
 
     def extract_ai(self, case_id, revision, cloud_data_approved=False):
         if cloud_data_approved is not True:

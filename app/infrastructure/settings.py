@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 @dataclass(frozen=True)
 class Settings:
+    form_template_dir: Path = field(default_factory=lambda: Path(os.getenv('FORM_TEMPLATE_DIR', ROOT / 'problem_files')))
     data_dir: Path = field(default_factory=lambda: Path(os.getenv('APP_DATA_DIR', ROOT / 'data')))
     reference_dir: Path = field(default_factory=lambda: Path(os.getenv('REFERENCE_DATA_DIR', ROOT.parent / 'aws')))
     region: str = field(default_factory=lambda: os.getenv('AWS_REGION') or os.getenv('AWS_DEFAULT_REGION') or 'us-west-2')

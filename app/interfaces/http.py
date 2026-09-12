@@ -5,7 +5,7 @@ from urllib.parse import quote
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, StrictBool
+from pydantic import BaseModel, ConfigDict, StrictBool, Field
 from starlette.concurrency import run_in_threadpool
 from app.application.ports import ExtractionUnavailable, RevisionConflict
 from app.bootstrap import build_service, sample_document
@@ -13,6 +13,7 @@ from app.domain.models import Case
 from app.infrastructure.persistence import now
 from app.infrastructure.settings import ROOT, Settings
 from app.interfaces.exports import export_case
+from app.application.export_contracts import ExportUnavailable
 
 
 class RevisionRequest(BaseModel):
@@ -24,11 +25,21 @@ class AiRequest(RevisionRequest):
     cloud_data_approved: StrictBool = False
 
 
-def create_app(settings=None, *, pdf=None, ai=None):
+class AgentRequest(AiRequest):
+    question: str = Field(min_length=1, max_length=1000)
+
+
+class RagRequest(AiRequest):
+    question: str = Field(min_length=1, max_length=1000)
+    generate: StrictBool = False
+    rule_ids: list[str] = Field(default_factory=list, max_length=100)
+
+
+def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=None, agent_model=None):
     @asynccontextmanager
     async def lifespan(app):
         app.state.settings = settings or Settings()
-        app.state.service = build_service(app.state.settings, pdf=pdf, ai=ai)
+        app.state.service = build_service(app.state.settings, pdf=pdf, ai=ai, retriever=retriever, answerer=answerer, agent_model=agent_model)
         if os.getenv('SEED_EXAMPLES', 'true').lower() == 'true':
             app.state.service.seed_examples(sample_document(app.state.settings))
         yield
@@ -140,6 +151,31 @@ def create_app(settings=None, *, pdf=None, ai=None):
     def extract_ai(cid: str, body: AiRequest):
         return service().extract_ai(cid, body.revision, body.cloud_data_approved)
 
+    @app.post('/api/cases/{cid}/evidence')
+    def evidence(cid: str, body: RagRequest):
+        return service().rag.query(cid, body.revision, body.question, generate=body.generate,
+                                   cloud_data_approved=body.cloud_data_approved, rule_ids=body.rule_ids)
+
+    @app.post('/api/cases/{cid}/agent-evidence')
+    def agent_evidence(cid: str, body: AgentRequest):
+        return service().rag.agent.query(cid, body.revision, body.question, body.cloud_data_approved)
+
+    @app.get('/api/rulesets/{rid}/evidence-documents')
+    def evidence_documents(rid: str):
+        return service().repository.list_evidence_documents(rid)
+
+    @app.post('/api/rulesets/{rid}/evidence-documents')
+    async def upload_evidence(rid: str, request: Request, valid_from: str, valid_to: str, name: str = '基準.pdf'):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > 20 * 1024 * 1024:
+                raise HTTPException(413, 'PDF 上限 20 MB。')
+        try:
+            return await run_in_threadpool(service().rag.upload_source, rid, bytes(data), name, valid_from, valid_to)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+
     @app.get('/api/rulesets')
     def rulesets():
         return service().repository.list_rules()
@@ -149,7 +185,17 @@ def create_app(settings=None, *, pdf=None, ai=None):
         return service().create_ruleset(body)
 
     @app.get('/api/cases/{cid}/export/{kind}')
-    def export(cid: str, kind: str):
+    def export(cid: str, kind: str, revision: int | None = None):
+        if kind in {'report-pdf', 'table3-xlsx', 'table3-pdf', 'table4-xlsx', 'table4-pdf', 'table5-xlsx', 'table5-pdf'}:
+            if revision is None:
+                raise HTTPException(422, '請提供案件 revision，確保匯出版本一致。')
+            try:
+                artifact = service().export_document(cid, kind, revision, now())
+            except ExportUnavailable as error:
+                raise HTTPException(503, str(error)) from error
+            return Response(artifact.data, media_type=artifact.media_type, headers={
+                'Content-Disposition': "attachment; filename*=UTF-8''" + quote(artifact.filename),
+                'X-Case-Revision': str(artifact.revision), 'Cache-Control': 'no-store'})
         result = service().get_case(cid)
         case = Case.model_validate(result['case'])
         return export_case(case, result['review'], service().repository.get_rules(case.ruleset_id), kind, now())

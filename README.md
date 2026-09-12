@@ -2,6 +2,12 @@
 
 本機估價審查工作台。上傳的 PDF 由 **PaddleOCR 在 CPU 辨識**；需要 AI 整理欄位時，使用 **Amazon Bedrock**。計算、級距與矩陣仍由確定性規則引擎執行，AI 回傳草稿須人工確認。
 
+「匯出成果」保留列表報告，新增列表 PDF，以及表3／表4／表5各自的 Excel、PDF 下載。使用目前已儲存案件填值，缺資料明示待補；模板與中文字型設定見 [分表輸出](docs/form-exports.md)。
+
+> **開發者／coding agent 請先讀：[AGENTS.md](AGENTS.md) → [TODO 與 DDD 分工](docs/TODO.md) → 負責目錄的 `AGENTS.md`。** TODO 包含介面規劃、前置任務與驗收條件；每項工作使用自己的功能分支，經 PR 審查。
+
+共用資料、ports、精度與版本相容規格見 [契約文件](docs/contracts.md)。現行操作中，修改因素會清除該列與總計確認；更換基準、來源或案件適用背景會清除全部確認。請先儲存修改，再勾選確認新版本；匯入 JSON 與採用建議也遵循同一規則。
+
 ## 目前專案架構
 
 目前由本機執行網站、OCR、規則計算及資料保存，AWS 提供模型推論。圖中的箭頭表示執行流程；應用層透過 ports 使用基礎設施，由 `bootstrap.py` 注入具體實作。
@@ -18,6 +24,7 @@ flowchart TB
         subgraph INFRA["基礎設施層 infrastructure"]
             OCR["PDF adapter<br/>PDFium 轉圖 → PaddleOCR<br/>CPU 子程序辨識"]
             AI["AI adapter<br/>Bedrock Converse<br/>快取、節流與有限重試"]
+            RAG["RAG adapters<br/>文字檢索、引用說明與原生 tool calling"]
             REPO["Repository adapter<br/>SQLite 與本機檔案存取"]
         end
 
@@ -35,6 +42,9 @@ flowchart TB
     APP -->|PdfReader| OCR
     APP -->|FieldExtractor| AI
     APP -->|ReviewRepository| REPO
+    APP -->|EvidenceRetriever／EvidenceAnswerer| RAG
+    RAG --> REPO
+    RAG -->|確認可上雲後：問題與原文片段| MODEL
     REPO --> DB
     REPO --> FILES
     AI -->|確認可上雲後：OCR 文字與因素定義| MODEL
@@ -42,6 +52,81 @@ flowchart TB
 ```
 
 上傳先走 PaddleOCR，再保存原始 PDF、辨識文字與待確認案件。AI 抽取由使用者另外啟動，預覽不修改案件；套用後仍須人工核對，估價判定由領域規則引擎執行。目前保留單一比較標的，尚未部署 AWS 主機。
+
+## 基準文件 RAG
+
+案件內按「依據問答」，先加入綁定該基準版本及適用期間的 PDF，再查找來源或請 Bedrock 生成附引用說明。本機檢索不需要 AWS；生成前須確認問題與來源可上雲。找不到符合案件版本、地區、用地及日期的依據時不生成答案。
+
+目前使用中文文字檢索基線，不使用向量或 GraphRAG。引用包含文件、頁碼、原文與版本；AI 不修改案件、不執行估價運算。完整操作、API 與限制見 [RAG 文件](docs/rag.md)。
+
+「Agent 自動查詢」使用 Bedrock Converse tool calling，自行選擇搜尋、讀取來源頁、查看規則或呼叫確定性審查。介面顯示工具紀錄與原始引擎結果，詳見 [Agentic RAG](docs/agentic-rag.md)。
+
+## 審查流程與競賽限制
+
+以下為目前已實作的主要操作路徑。DDD 的 application 層編排流程，infrastructure 層處理 OCR、AWS 與儲存，domain 層負責確定性計算；HTTP 與畫面呈現結果。
+
+### PDF 上傳到審查匯出
+
+```mermaid
+flowchart TB
+    UPLOAD["瀏覽器上傳 PDF"] --> HTTP["interfaces：FastAPI 接收文件<br/>檔案上限 20 MB"]
+    HTTP --> OCR["infrastructure：PDFium 轉圖、PaddleOCR CPU 辨識<br/>最多 200 頁，限制像素與執行時間"]
+    OCR -->|成功| DRAFT["application：版型解析與待確認草稿<br/>本機保存原始 PDF、OCR 文字、座標及案件"]
+    OCR -->|失敗或逾時| ERROR["顯示錯誤<br/>檢查或拆分文件後重新上傳"]
+    DRAFT --> OPTIONAL{"需要 AWS AI 整理欄位？"}
+    OPTIONAL -->|否| HUMAN["人工核對原文、適用基準與欄位<br/>確認或修正資料"]
+    OPTIONAL -->|是| AI["執行下方 AI 抽取子流程<br/>取得草稿或錯誤提示"]
+    AI --> HUMAN
+    HUMAN --> SAVE["application：檢查 revision<br/>repository：保存案件與修訂快照"]
+    SAVE --> RULES["domain：Decimal 計算與規則審查<br/>級距、矩陣、加總及跨表一致性"]
+    RULES --> RESULT["通過／疑似錯誤／待確認／資料不足"]
+    RESULT -->|繼續修正| HUMAN
+    RESULT --> EXPORT["匯出 JSON、CSV、HTML 報告與整理書表<br/>HTML 可由瀏覽器列印或另存 PDF"]
+```
+
+載入案件時也會計算目前審查狀態；未確認資料不會自動通過。儲存時若 revision 已過期，回傳衝突並要求重新載入。尚有疑點的案件仍可匯出，報告會保留待確認狀態。**後端直接產生 PDF、原書表套印、多比較標的及 GraphRAG 仍列於 [TODO](docs/TODO.md)，未包含在已完成流程中。**
+
+### AWS AI 抽取子流程
+
+```mermaid
+flowchart TB
+    START["使用者啟動 AWS AI 抽取<br/>需已啟用 Bedrock，並先儲存畫面變更"]
+    START --> POLICY{"已確認整份文件符合競賽上雲規範？"}
+    POLICY -->|否或尚未確認| LOCAL["不呼叫 AWS<br/>繼續本機 OCR 與人工核對"]
+    POLICY -->|是| READ["application：核對案件 revision<br/>載入 OCR 文字與案件指定的基準版本"]
+    READ --> CACHE{"相同輸入的 AI 快取存在？"}
+    CACHE -->|是，使用已驗證結果| REVISION
+    CACHE -->|否| GATE["共用鎖與持久化節流<br/>每次嘗試間隔至少 1.1 秒<br/>適用錯誤最多嘗試 3 次，SDK 自動重試關閉"]
+
+    subgraph AWS["AWS：目前使用 us-west-2"]
+        MODEL["Bedrock Converse<br/>qwen.qwen3-32b-v1:0<br/>只整理欄位草稿，不執行估價計算"]
+    end
+
+    GATE -->|OCR 文字與因素定義| MODEL
+    MODEL -->|欄位與來源行號| VERIFY["本機驗證完整 JSON、因素 ID、原文引用及數值<br/>只保留可接受的候選並寫入快取"]
+    MODEL -->|呼叫失敗或重試耗盡| FAIL["顯示錯誤，原案件保持不變<br/>重新載入、稍後重試或人工核對"]
+    VERIFY -->|無有效草稿或輸出不完整| FAIL
+    VERIFY -->|有有效草稿| REVISION{"抽取前後案件 revision 仍一致？"}
+    REVISION -->|否| FAIL
+    REVISION -->|是| PREVIEW["回傳未確認草稿，預覽不寫回案件<br/>使用者勾選套用後，回到人工核對與儲存"]
+```
+
+引用與數值存在性檢查不代表模型已選對欄位或比較方向。上雲確認是使用者的資料適用性確認，程式目前沒有自動辨識所有受限資料；將 PDF 轉成 OCR 文字不會解除原資料的限制。雲端整合測試只使用合成文件。
+
+### 規範如何反映在流程中
+
+依 `REFERENCE_DATA_DIR` 下的 `黑客松競賽環境規範與限制_20260722.pdf` 第 1–2 頁，對照目前程式如下；若賽期間公告有調整，以主辦最新規範與實際環境為準。
+
+| 競賽規範 | 目前流程／實作 |
+| --- | --- |
+| 禁止將個資、財務資訊等受限資料引入 AWS | 呼叫前確認整份文件適用性；未確認時保留本機處理路徑，測試使用合成資料 |
+| Bedrock 每秒 1 個請求以下 | 同一主機共用鎖、持久化節流及至少 1.1 秒間隔；重試同樣經過節流，命中快取不呼叫模型 |
+| 指定主要部署區域為 `us-east-1`、`us-west-2` | 程式只接受這兩區，預設 `us-west-2`；本版使用區域內模型 ID，拒絕跨區 inference profile |
+| 僅使用必要模型與資源，不建議大規模訓練 | 本機 CPU 執行 PaddleOCR，需要 AI 時才呼叫設定的模型；目前沒有模型訓練流程 |
+| GitHub 不得包含機密憑證 | `.env` 被 Git 忽略，保留不含金鑰的 `.env.example`；AWS SDK 從 profile、環境或 role 讀取憑證 |
+| S3 不可公開、EC2 Security Group 不可完全開放、RDS／EMR 不可公開存取 | 目前沒有部署這些雲端資源；未來部署須依規範及支援服務清單另行配置 |
+
+本機節流只涵蓋共用相同資料目錄的應用程序，不會限制同帳號其他工具或其他主機的模型請求；團隊使用 AWS CLI 或新增服務時仍須共同遵守帳號的請求限制。
 
 ## 快速開始（macOS / Linux，Python 3.12）
 
@@ -150,7 +235,10 @@ OCR 在獨立子程序執行；超過時間會終止，不把 AWS 憑證環境�
 
 ## 基準及計算設計
 
-規則結構包含 `scope`、`unit`、`bands`、`matrix`、`source_page`。矩陣固定為 **列＝比準地、欄＝比較標的**，儲存百分點；計算時才除以 100。採用 `Decimal`，不以二進位浮點數累加。
+既有金山 ruleset 結構包含 `scope`、`unit`、`bands`、`matrix`、`source_page`，矩陣為
+**列＝比準地、欄＝比較標的**。樹林普通住宅的獨立 domain API 則以明確參數名稱保存其表格語意：
+**列＝目標區段、欄＝基準區段**；兩者尚未串接，不可在整合時直接混用方向。矩陣儲存百分點，
+計算時才除以 100。採用 `Decimal`，不以二進位浮點數累加。
 
 - 數值級距採「下限含、上限不含」，深度包含不連續級距（未滿 10 m 或 100 m 以上均為劣）。
 - 文字分類只對照明訂值；`null` / 空白、`0`、`無` 與免比較不混用。
@@ -204,9 +292,16 @@ npm run test:e2e
 
 已安裝 Google Chrome 時，可改用 `PLAYWRIGHT_CHANNEL=chrome npm run test:e2e`。
 
+### Agent 工具與回答驗收
+
+可用 `.venv/bin/python -m scripts.evaluate_agent --bedrock --profile landwise-hackathon` 跑六題合成驗收；省略 --bedrock 僅檢查測資，不呼叫 AWS。包括規則／計算工具、缺來源、錯版本、缺值與矛盾來源；[執行方式與實測結果](docs/agent-evaluation.md)。
+
 ## 目前功能邊界
 
-既有計算仍是金山商業用地、單一比較標的範例。PaddleOCR 能辨識更多 PDF，不代表已完成不同案件的因素規則、三筆比較標的模型或官方表格套印。保留 OCR 框座標供後續定位，目前介面仍以頁與文字引用對照。AI 引用存在不保證左右欄對應正確。
+目前應用流程仍是金山商業用地、單一比較標的範例。樹林普通住宅已具備獨立的純 domain
+計算、分級與價格修正率 API，但尚未接入案件模型、ruleset repository 或 HTTP；因此仍不能視為
+已完成三筆比較標的流程或官方表格套印。PaddleOCR 能辨識更多 PDF，也不代表已完成不同案件的
+端到端流程。保留 OCR 框座標供後續定位，目前介面仍以頁與文字引用對照。AI 引用存在不保證左右欄對應正確。
 
 沒有多人帳號、正式簽章、分散式任務佇列或正式 AWS 部署；預設僅監聽 `127.0.0.1`。
 
