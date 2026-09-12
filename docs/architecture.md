@@ -73,6 +73,12 @@ AWS 主機的對外存取、登入、備份與多機協調尚未在本次部署�
 
 新增 `evidence_documents` 表與索引，原始 PDF 保存在原有 documents／uploads；案件與 audit 不變。`static/rag.js` 提供來源上傳、查找與說明視窗。查詢不更改基準或確認狀態；v2 整合與 GraphRAG 仍未實作。詳見 [RAG 操作與限制](rag.md)及 [共用契約](contracts.md)。
 
+## 動態 ruleset 與題目匯入
+
+`RulesetImportService` 編排「PaddleOCR → structured ruleset 草稿 → 人工確認矩陣方向與期間 → 保存規則版本及檢索來源」。OCR 草稿不會直接執行；確認時才將通用 `FactorRule` 投影到現行案件審查 JSON 契約，且規則與來源索引在同一筆 repository transaction 保存。
+
+題目 PDF 必須明確帶入已選 ruleset。`application/drafts.py` 只依該 ruleset 提供的因素名稱、標籤、分類值與單位做保守列對應，另擷取文件中明確出現的行政區與詳細地址；不做 geocoding，也不以基準地區冒充題目辨識結果。無法唯一對應的欄位維持待確認。固定表3／表4／表5 renderer 仍是既有版型 adapter；跨地區完整輸出使用不依賴固定因素 ID 的 `review-xlsx`。
+
 ## Agentic RAG
 
 `AgenticRagService` 讓模型透過 `AgentModel` 選擇四個已註冊函式：搜尋、來源讀頁、查看規則及 domain 審查。Bedrock adapter 負責原生 toolUse／toolResult；工具由 application 執行，不讓模型直接操作 Python 或資料庫。迴圈受 revision、工具白名單、引用驗證及次數限制。詳見 [Agentic RAG](agentic-rag.md)。

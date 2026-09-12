@@ -98,6 +98,37 @@ class SQLiteReviewRepository:
             c.execute('INSERT INTO rulesets VALUES (?,?)', (saved['id'], json.dumps(saved, ensure_ascii=False)))
         return saved
 
+    def save_confirmed_ruleset(self, ruleset, document_id, valid_from, valid_to):
+        """Atomically publish a ruleset and index its already-OCRed source."""
+
+        saved = dict(ruleset, id='custom-' + uuid.uuid4().hex)
+        with self.db() as c:
+            c.execute('BEGIN IMMEDIATE')
+            document = c.execute(
+                'SELECT name,path FROM documents WHERE id=?', (document_id,)
+            ).fetchone()
+            if not document:
+                raise KeyError(document_id)
+            digest = hashlib.sha256(Path(document['path']).read_bytes()).hexdigest()
+            c.execute(
+                'INSERT INTO rulesets VALUES (?,?)',
+                (saved['id'], json.dumps(saved, ensure_ascii=False)),
+            )
+            c.execute(
+                'INSERT INTO evidence_documents VALUES (?,?,?,?,?,?,?,?)',
+                (
+                    document_id,
+                    digest,
+                    saved['id'],
+                    saved['version'],
+                    saved['locality'],
+                    saved['land_use'],
+                    valid_from.isoformat(),
+                    valid_to.isoformat(),
+                ),
+            )
+        return saved
+
     def save_document(self, data, name, pages):
         document_id = uuid.uuid4().hex
         path = self.data_dir / 'uploads' / (document_id + '.pdf')

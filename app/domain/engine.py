@@ -73,11 +73,18 @@ def review(case: Case, ruleset: dict):
                 check(r['id'],r['name'],'error','雙方區段號相同，但區域條件不一致；請核對區段與資料來源。',f.entered_rate,**base)
                 ready[scope]=False;continue
         a,b=classify(f.subject,r),classify(f.comparable,r)
+        labels=[x['label'] for x in r['bands']]
+        raw_absent = all(
+            value is None or (isinstance(value, str) and not value.strip())
+            for value in (f.subject, f.comparable)
+        )
+        if r.get('allow_grade_only') and raw_absent and (a is None or b is None):
+            if f.subject_grade in labels and f.comparable_grade in labels:
+                a=labels.index(f.subject_grade);b=labels.index(f.comparable_grade)
         if a is None or b is None:
             msg='資料缺漏、單位不符或未能對應唯一級距。'
             if r.get('warning'): msg+=' '+r['warning']
             check(r['id'],r['name'],'missing',msg,f.entered_rate,**base);ready[scope]=False;continue
-        labels=[x['label'] for x in r['bands']]
         expected=Decimal(str(r['matrix'][a][b]));actual=number(f.entered_rate)
         grade_bad=(f.subject_grade is not None and f.subject_grade!=labels[a]) or (f.comparable_grade is not None and f.comparable_grade!=labels[b])
         mismatch=actual!=expected or grade_bad

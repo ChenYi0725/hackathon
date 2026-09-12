@@ -4,7 +4,8 @@ from app.domain.models import Case
 
 CONFIRMATION_CONTEXT = (
     'ruleset_id', 'document_id', 'locality', 'land_use', 'valuation_date',
-    'subject_name', 'comparable_name', 'subject_section', 'comparable_section',
+    'subject_name', 'comparable_name', 'subject_address', 'comparable_address',
+    'subject_section', 'comparable_section',
 )
 
 

@@ -12,9 +12,11 @@ from app.infrastructure.text_pdf import read_pdf
 from app.infrastructure.form_exports import TemplateFormRenderer
 from app.infrastructure.ruleset_table import PaddleLayoutRulesetExtractor
 from app.application.ruleset_extraction import RulesetExtractionService
+from app.application.ruleset_imports import RulesetImportService
 
 
-def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None, agent_model=None):
+def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None,
+                  agent_model=None, ruleset_extractor=None):
     repository = SQLiteReviewRepository(settings.data_dir)
     repository.initialize()
     pdf_reader = pdf or PaddlePdfReader(settings, repository)
@@ -22,8 +24,14 @@ def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None, ag
     retrieval = retriever or LocalEvidenceRetriever(repository)
     agent = AgenticRagService(repository, retrieval, agent_model or BedrockAgentModel(transport))
     rag = RagService(repository, pdf_reader, retrieval, answerer or BedrockEvidenceAnswerer(transport), agent=agent)
+    ruleset_import = RulesetImportService(
+        repository,
+        pdf_reader,
+        ruleset_extractor or PaddleLayoutRulesetExtractor(),
+    )
     return ReviewService(repository, pdf_reader, ai or transport, rag=rag,
-                         renderer=TemplateFormRenderer(settings.form_template_dir))
+                         renderer=TemplateFormRenderer(settings.form_template_dir),
+                         ruleset_import=ruleset_import)
 
 
 def build_ruleset_extraction_service(settings, pdf=None):

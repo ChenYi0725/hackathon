@@ -39,11 +39,30 @@ class RagRequest(AiRequest):
     rule_ids: list[str] = Field(default_factory=list, max_length=100)
 
 
-def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=None, agent_model=None):
+class RulesetConfirmationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    document_id: str = Field(min_length=1, max_length=100)
+    candidate: dict
+    valid_from: str = Field(min_length=10, max_length=10)
+    valid_to: str = Field(min_length=10, max_length=10)
+    matrix_direction: str
+    confirmed: StrictBool = False
+
+
+def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=None,
+               agent_model=None, ruleset_extractor=None):
     @asynccontextmanager
     async def lifespan(app):
         app.state.settings = settings or Settings()
-        app.state.service = build_service(app.state.settings, pdf=pdf, ai=ai, retriever=retriever, answerer=answerer, agent_model=agent_model)
+        app.state.service = build_service(
+            app.state.settings,
+            pdf=pdf,
+            ai=ai,
+            retriever=retriever,
+            answerer=answerer,
+            agent_model=agent_model,
+            ruleset_extractor=ruleset_extractor,
+        )
         if os.getenv('SEED_EXAMPLES', 'true').lower() == 'true':
             app.state.service.seed_examples(sample_document(app.state.settings))
         yield
@@ -136,6 +155,31 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
 
+    @app.post('/api/ruleset-imports')
+    async def import_ruleset(
+        request: Request,
+        expected_locality: str,
+        name: str = '評價基準明細表.pdf',
+    ):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > 20 * 1024 * 1024:
+                raise HTTPException(413, 'PDF 上限 20 MB。')
+        try:
+            return await run_in_threadpool(
+                service().ruleset_import.extract,
+                bytes(data),
+                name,
+                expected_locality,
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+
+    @app.post('/api/ruleset-imports/confirm')
+    def confirm_ruleset(body: RulesetConfirmationRequest):
+        return service().ruleset_import.confirm(**body.model_dump())
+
     @app.get('/api/documents/{docid}')
     def document(docid: str):
         doc = service().repository.get_document(docid)
@@ -194,7 +238,7 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
 
     @app.get('/api/cases/{cid}/export/{kind}')
     def export(cid: str, kind: str, revision: int | None = None):
-        if kind in {'table3-xlsx', 'table4-xlsx', 'table5-xlsx'}:
+        if kind in {'review-xlsx', 'table3-xlsx', 'table4-xlsx', 'table5-xlsx'}:
             if revision is None:
                 raise HTTPException(422, '請提供案件 revision，確保匯出版本一致。')
             try:

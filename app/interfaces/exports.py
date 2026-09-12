@@ -43,7 +43,7 @@ def export_case(case, result, rules, kind: str, generated_at: str):
     <style>body{{font-family:system-ui,sans-serif;max-width:1100px;margin:40px auto;color:#183b38;padding:0 20px}}h1{{font-size:26px}}h2{{font-size:18px;margin-top:32px}}table{{border-collapse:collapse;width:100%;font-size:12px}}td,th{{border:1px solid #ccc;padding:9px;text-align:left}}th{{background:#eef4f1}}.notice{{background:#fff4db;padding:16px}}button{{padding:12px}}@media print{{button{{display:none}}tr{{break-inside:avoid}}thead{{display:table-header-group}}}}</style>
     <h1>地衡 · {esc(case.title)}</h1>
     <p>案號 {esc(case.case_number)} · 基準日 {esc(case.valuation_date)} · 案件版本 {case.revision}</p>
-    <p>比準地：{esc(case.subject_name)} ／ 比較標的：{esc(case.comparable_name)}</p>
+    <p>比準地：{esc(case.subject_name)}（{esc(case.subject_address)}） ／ 比較標的：{esc(case.comparable_name)}（{esc(case.comparable_address)}）</p>
     <p>基準：{esc(result['ruleset_id'])} / {esc(result['ruleset_version'])}</p>
     <div class="notice">{'人工植入錯誤之示範案件。' if case.demo else ''} 審查狀態：{'全部檢核通過' if result['complete'] else '尚有疑點或待確認項目'}。本文件為輔助審查草稿。</div>
     <p>{esc(case.notes)}</p>{content}<p>產出時間：{generated_at}</p></html>'''
