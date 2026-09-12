@@ -34,12 +34,13 @@ def test_timeout_is_explicit_and_cloud_credentials_are_not_forwarded(tmp_path, m
 
 @pytest.mark.integration
 @pytest.mark.skipif(os.getenv('RUN_OCR_TESTS') != '1', reason='Set RUN_OCR_TESTS=1 to run real CPU OCR')
-def test_real_paddleocr_reads_scanned_pdf(tmp_path):
+@pytest.mark.parametrize('engine', ['paddleocr', 'rapidocr'])
+def test_real_ocr_reads_scanned_pdf(tmp_path, engine):
     from pypdf import PdfReader
     path = Path(__file__).parent / 'fixtures' / 'synthetic-scanned.pdf'
     assert not PdfReader(path).pages[0].extract_text().strip()
-    pages = PaddlePdfReader(Settings(data_dir=tmp_path)).read(path.read_bytes())
-    assert len(pages) == 1 and pages[0]['method'] == 'paddleocr'
+    pages = PaddlePdfReader(Settings(data_dir=tmp_path, ocr_engine=engine)).read(path.read_bytes())
+    assert len(pages) == 1 and pages[0]['method'] == engine
     assert '寬度' in pages[0]['text']
     assert '18' in pages[0]['text'] and '6' in pages[0]['text']
     assert all(len(line['bbox']) == 4 for line in pages[0]['lines'])

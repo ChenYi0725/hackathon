@@ -34,12 +34,14 @@ bootstrap.py 負責選擇具體 adapter 並注入。
 ## PDF 用例
 
 1. HTTP 串流接收，超過 20 MB 立即停止。
-2. Paddle adapter 以 PDF hash 與 OCR 設定查詢快取。
-3. 啟動獨立子程序，以 PDFium 將頁面轉成圖片，PaddleOCR 在 CPU 辨識。
+2. LocalPdfReader 以 PDF hash、引擎、模型與 OCR 設定查詢快取。
+3. 啟動獨立子程序，以 PDFium 將頁面轉成圖片，由設定的 PaddleOCR／RapidOCR 在 CPU 辨識。
 4. 保存文字框、信心值、像素座標及頁面尺寸，再按位置重建供解析器使用的文字。
 5. 已知版型轉為待確認草稿；原文、PDF 與案件分別保存。
 
-子程序不接受模型工具指令，也不呼叫雲端文件處理服務。Paddle 模型首次從官方來源下載。逾時會終止子程序；程式不會在 OCR 失敗後假裝改用成功的文字層結果。
+子程序不接受模型工具指令，也不呼叫雲端文件處理服務。所選引擎的模型首次從官方來源下載。逾時會終止子程序；程式不會在 OCR 失敗後假裝改用成功的文字層結果。
+
+設定、舊文件來源保留、快取隔離與回復方式見 [OCR 引擎切換](ocr-engines.md)。
 
 ## AI 用例
 
@@ -75,7 +77,7 @@ AWS 主機的對外存取、登入、備份與多機協調尚未在本次部署�
 
 ## 動態 ruleset 與題目匯入
 
-`RulesetImportService` 編排「PaddleOCR → structured ruleset 草稿 → 人工確認矩陣方向與期間 → 保存規則版本及檢索來源」。OCR 草稿不會直接執行；確認時才將通用 `FactorRule` 投影到現行案件審查 JSON 契約，且規則與來源索引在同一筆 repository transaction 保存。
+`RulesetImportService` 編排「所選 OCR 引擎 → structured ruleset 草稿 → 人工確認矩陣方向與期間 → 保存規則版本及檢索來源」。OCR 草稿不會直接執行；確認時才將通用 `FactorRule` 投影到現行案件審查 JSON 契約，且規則與來源索引在同一筆 repository transaction 保存。
 
 題目 PDF 必須明確帶入已選 ruleset。`application/drafts.py` 只依該 ruleset 提供的因素名稱、標籤、分類值與單位做保守列對應，另擷取文件中明確出現的行政區與詳細地址；不做 geocoding，也不以基準地區冒充題目辨識結果。無法唯一對應的欄位維持待確認。固定表3／表4／表5 renderer 仍是既有版型 adapter；跨地區完整輸出使用不依賴固定因素 ID 的 `review-xlsx`。
 

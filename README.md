@@ -1,6 +1,6 @@
 # 地衡 Landwise · PaddleOCR + Amazon Bedrock
 
-本機估價審查工作台。上傳的 PDF 由 **PaddleOCR 在 CPU 辨識**；需要 AI 整理欄位時，使用 **Amazon Bedrock**。計算、級距與矩陣仍由確定性規則引擎執行，AI 回傳草稿須人工確認。
+本機估價審查工作台。上傳的 PDF 由 **可設定的 PaddleOCR／RapidOCR 在 CPU 辨識**；需要 AI 整理欄位時，使用 **Amazon Bedrock**。計算、級距與矩陣仍由確定性規則引擎執行，AI 回傳草稿須人工確認。
 
 「匯出成果」提供適用任意 ruleset 的完整審查 Excel、HTML 列表報告、CSV、JSON，以及表3／表4／表5各自的固定模板 Excel。PDF 輸出已移除。表格範例位於 [out_put_teamplate/](out_put_teamplate/README.md)，設定見 [分表輸出](docs/form-exports.md)。
 
@@ -22,7 +22,7 @@ flowchart TB
         DOMAIN["領域層 domain<br/>Case、Factor、Evidence<br/>級距、矩陣與審查計算"]
 
         subgraph INFRA["基礎設施層 infrastructure"]
-            OCR["PDF adapter<br/>PDFium 轉圖 → PaddleOCR<br/>CPU 子程序辨識"]
+            OCR["PDF adapter<br/>PDFium 轉圖 → 所選 OCR 引擎<br/>CPU 子程序辨識"]
             AI["AI adapter<br/>Bedrock Converse<br/>快取、節流與有限重試"]
             RAG["RAG adapters<br/>文字檢索、引用說明與原生 tool calling"]
             REPO["Repository adapter<br/>SQLite 與本機檔案存取"]
@@ -51,7 +51,7 @@ flowchart TB
     MODEL -->|欄位草稿與來源行號| AI
 ```
 
-上傳先走 PaddleOCR，再保存原始 PDF、辨識文字與待確認案件。AI 抽取由使用者另外啟動，預覽不修改案件；套用後仍須人工核對，估價判定由領域規則引擎執行。目前保留單一比較標的，尚未部署 AWS 主機。
+上傳先走所選 OCR 引擎，再保存原始 PDF、辨識文字與待確認案件。AI 抽取由使用者另外啟動，預覽不修改案件；套用後仍須人工核對，估價判定由領域規則引擎執行。目前保留單一比較標的，尚未部署 AWS 主機。
 
 ## 基準文件 RAG
 
@@ -70,7 +70,7 @@ flowchart TB
 ```mermaid
 flowchart TB
     UPLOAD["瀏覽器上傳 PDF"] --> HTTP["interfaces：FastAPI 接收文件<br/>檔案上限 20 MB"]
-    HTTP --> OCR["infrastructure：PDFium 轉圖、PaddleOCR CPU 辨識<br/>最多 200 頁，限制像素與執行時間"]
+    HTTP --> OCR["infrastructure：PDFium 轉圖、所選 OCR 引擎 CPU 辨識<br/>最多 200 頁，限制像素與執行時間"]
     OCR -->|成功| DRAFT["application：版型解析與待確認草稿<br/>本機保存原始 PDF、OCR 文字、座標及案件"]
     OCR -->|失敗或逾時| ERROR["顯示錯誤<br/>檢查或拆分文件後重新上傳"]
     DRAFT --> OPTIONAL{"需要 AWS AI 整理欄位？"}
@@ -146,6 +146,28 @@ cp .env.example .env
 
 原生 JavaScript / CSS 由 FastAPI 提供，不需前端建置。`npm` 僅用於 Playwright 測試與簡報工具。
 
+## 切換本機 OCR 引擎
+
+預設 `OCR_ENGINE=paddleocr`，沿用 `requirements-ocr.txt`。使用 RapidOCR ONNX CPU 時：
+
+```bash
+.venv/bin/python -m pip install -r requirements-rapidocr.txt
+```
+
+在 `.env` 設定 `OCR_ENGINE=rapidocr`，重新啟動服務；`/api/health` 的 `ocr_provider`、
+`ocr_detection_model` 與 `ocr_recognition_model` 可核對目前設定。RapidOCR 使用固定
+PP-OCRv5 模型，支援 `PP-OCRv5_mobile_det`／`PP-OCRv5_server_det` 與
+`PP-OCRv5_mobile_rec`／`PP-OCRv5_server_rec`；預設仍為 mobile det + server rec。
+模型首次下載後存於使用者的 `~/.cache/rapidocr/`，文件在本機辨識。
+
+切換只影響新上傳的題目、評價基準與依據文件。頁面來源的 `method` 保存實際引擎，
+文字框、信心值與人工確認流程不變。既有案件、文件及 audit 不重新辨識；同一 PDF
+重新上傳會建立新文件。OCR 快取區分引擎、模型、DPI 與執行緒設定；此版啟用新的快取
+namespace，舊快取保留但不直接重用。回復時把 `OCR_ENGINE` 改回 `paddleocr` 並重啟，
+不需修改或清除 SQLite。失敗會顯示錯誤，不自動切換引擎或改讀文字層。
+
+切換驗收與限制見 [OCR 引擎文件](docs/ocr-engines.md)。
+
 ## AWS 身分與模型
 
 AWS 憑證使用 SDK 標準查找鏈，不寫進程式或提交 Git。可使用臨時 session credentials、AWS CLI profile、EC2 instance role，或 SDK 支援的 Bedrock API key。
@@ -172,14 +194,14 @@ BEDROCK_ENABLED=true
 ## 使用流程
 
 1. 上傳特定地區的評價基準明細表，填寫地區與適用期間。
-2. PaddleOCR 轉成 structured ruleset 草稿；人工核對矩陣方向後建立不可覆寫版本，原始 PDF 同時加入該版本的本機檢索來源。
+2. 所選 OCR 引擎轉成 structured ruleset 草稿；人工核對矩陣方向後建立不可覆寫版本，原始 PDF 同時加入該版本的本機檢索來源。
 3. 選擇已確認的 ruleset，再上傳 20 MB 以內、最多 200 頁的題目 PDF。
-4. PaddleOCR 擷取題目文字；程式只整理明確出現的行政區、詳細地址與可唯一對應的動態因素列，其他內容保持待確認。
+4. 所選 OCR 引擎擷取題目文字；程式只整理明確出現的行政區、詳細地址與可唯一對應的動態因素列，其他內容保持待確認。
 5. 如需 AI，按「AWS AI 抽取」，確認此文件符合競賽上雲規範後，將辨識文字送至 Bedrock。
 6. 規則引擎核對等級、修正率、加總與跨表數值；每次修改保存版本及快照。
 7. 匯出完整審查 Excel、CSV、JSON、可列印 HTML 報告或既有固定模板分表。
 
-內建案例是 `app/domain/sample.py` 的人工整理資料，並非現場 AI 推論結果。提供範例的文字層只用於內建原文與既有解析器回歸測試；**使用者的 PDF 上傳入口固定走 PaddleOCR，不會靜默改用文字層抽取。**
+內建案例是 `app/domain/sample.py` 的人工整理資料，並非現場 AI 推論結果。提供範例的文字層只用於內建原文與既有解析器回歸測試；**使用者的 PDF 上傳入口固定走設定的 OCR 引擎，不會靜默改用文字層抽取。**
 
 ## DDD 結構
 
@@ -212,6 +234,7 @@ tests/             領域、應用流程、介接契約及選用真實 OCR 測�
 | `BEDROCK_MODEL_ID` | `qwen.qwen3-32b-v1:0` | 區域內 Converse 模型 |
 | `BEDROCK_ENABLED` | `true` | `false` 關閉雲端 AI，仍可使用 OCR 與規則 |
 | `BEDROCK_MIN_INTERVAL` | `1.1` 秒 | 所有模型嘗試間隔，包含重試 |
+| `OCR_ENGINE` | `paddleocr` | 可設為 `rapidocr`；安裝對應依賴後重啟服務 |
 | `OCR_DPI` | `180` | PDF 轉圖片解析度（72–300） |
 | `OCR_CPU_THREADS` | `2` | CPU 執行緒數（1–8） |
 | `OCR_TIMEOUT_SECONDS` | `300` | 每份 PDF 的辨識逾時，首次下載可暫提高 |
@@ -303,6 +326,7 @@ payload = result.to_dict()
 執行真實 CPU OCR：
 
 ```bash
+# 需安裝兩份 OCR requirements；或用 -k paddleocr / -k rapidocr 選擇引擎
 RUN_OCR_TESTS=1 .venv/bin/python -m pytest tests/test_paddle.py -q
 ```
 
@@ -315,7 +339,7 @@ RULESET_LOCALITY=某縣市某區 \
 .venv/bin/python -m pytest tests/test_ruleset_ocr_integration.py -q
 ```
 
-走完整 HTTP 上傳、PaddleOCR、Bedrock 預覽、來源驗證及快取流程：
+走完整 HTTP 上傳、所選 OCR 引擎、Bedrock 預覽、來源驗證及快取流程：
 
 ```bash
 .venv/bin/python -m scripts.smoke_integrations --bedrock --profile landwise-hackathon
@@ -323,7 +347,7 @@ RULESET_LOCALITY=某縣市某區 \
 
 此命令只使用 `tests/fixtures/synthetic-scanned.pdf`，不含真實案件或價格。測試資料庫放在暫存目錄並自動清除，結果存於被 Git 忽略的 `.analysis/integration-smoke.json`。
 
-瀏覽器測試使用真實 PaddleOCR；Bedrock 介面流程使用合成回應，不呼叫雲端：
+瀏覽器測試使用設定的真實 OCR 引擎；Bedrock 介面流程使用合成回應，不呼叫雲端：
 
 ```bash
 npm ci

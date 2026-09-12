@@ -101,11 +101,12 @@ class ReviewService:
         ruleset = self.repository.get_rules(ruleset_id)
         pages = self.pdf.read(data)
         case = parse_case(pages, name.removesuffix('.pdf')[:140] or '匯入案件', ruleset)
-        case.extraction_warnings.insert(0, 'PaddleOCR 已辨識頁面文字；表格欄位及比較方向仍須人工核對。')
+        case.extraction_warnings.insert(0, 'OCR 已辨識頁面文字；表格欄位及比較方向仍須人工核對。')
+        page_methods = {page['page']: page.get('method', 'ocr') for page in pages}
         for factor in case.factors:
-            factor.evidence.method = 'paddleocr-layout'
+            factor.evidence.method = page_methods.get(factor.evidence.page, 'ocr') + '-layout'
         case.document_id = self.repository.save_document(data, name[:200], pages)
-        return self.payload(self.repository.save_case(case, '上傳 PDF 與 PaddleOCR 辨識', new=True))
+        return self.payload(self.repository.save_case(case, '上傳 PDF 與 OCR 辨識', new=True))
 
     def fix(self, case_id, check_id, revision):
         case = self.repository.get_case(case_id)

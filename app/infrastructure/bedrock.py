@@ -64,7 +64,7 @@ class BedrockFieldExtractor:
             for index, line in enumerate(p['text'].splitlines(), 1)
         ) for p in pages)
         if not content.strip() or not any(p['text'].strip() for p in pages):
-            raise ValueError('文件沒有可辨識文字，請先檢查 PaddleOCR 結果。')
+            raise ValueError('文件沒有可辨識文字，請先檢查 OCR 結果。')
         if len(content) > 60000:
             raise ValueError('AI 抽取上限為 60,000 字元，請拆分案件書表。')
         key = hashlib.sha256(json.dumps({

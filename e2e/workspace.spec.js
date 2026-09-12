@@ -61,7 +61,7 @@ test('dashboard, evidence, fix, edit, persist and export', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('scanned PDF upload through PaddleOCR and disabled Bedrock message', async ({ page }) => {
+test('scanned PDF upload through configured OCR and disabled Bedrock message', async ({ page }) => {
   test.setTimeout(120000);
   await page.goto('/');
   await page.locator('#pdf-input').setInputFiles(path.join(__dirname,'..','tests','fixtures','synthetic-scanned.pdf'));
