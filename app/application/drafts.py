@@ -12,11 +12,17 @@ def parse_case(pages, title, ruleset):
     pages = [dict(p, text=unicodedata.normalize('NFKC', p['text'])) for p in pages]
     rules=ruleset['rules']
     case=Case(title=title,source_kind='pdf',ruleset_id=ruleset['id'],locality=ruleset['locality'],land_use=ruleset['land_use'],factors=[Factor(id=r['id'],evidence=Evidence(page=3 if r['scope']=='individual' else 1,method='layout-parser')) for r in rules])
-    case.extraction_warnings=['匯入內容尚未確認；請核對原文後勾選確認。','目前支援提供範本的單一比較標的版型；不同版型或多比較標的請人工整理後匯入 JSON。']
+    case.extraction_warnings=['匯入內容尚未確認；請核對原文後勾選確認。']
+    if ruleset.get('import_kind') == 'ocr-structured':
+        case.extraction_warnings.append('題目欄位依上傳基準的因素名稱與級距整理；無法唯一對應的內容保持待確認。')
+    else:
+        case.extraction_warnings.append('目前支援提供範本的單一比較標的版型；不同版型或多比較標的請人工整理後匯入 JSON。')
     by_id = {factor.id: factor for factor in case.factors}
+    _parse_location_fields(case, pages, ruleset)
     comparison=next((p for p in pages if re.search(r'表\s*4\s*比較法調查估價表',p['text'])),None)
     if not comparison:
         case.extraction_warnings.append('未找到表 4；已保留原文，請手動填寫或使用本機 AI 抽取。')
+        _parse_dynamic_factors(case, pages, ruleset, by_id)
         return case
     text=comparison['text'];lines=text.splitlines()
     # Detect populated additional comparison columns before selecting any values.
@@ -85,7 +91,8 @@ def parse_case(pages, title, ruleset):
         m=re.search(pattern,text)
         if m:
             setattr(case.totals,name,float(m[1].replace(',','')))
-            case.field_sources['totals.'+name] = Evidence(page=comparison['page'],quote=m[0],method='layout-parser')
+            case.total_evidence[name] = Evidence(page=comparison['page'], quote=m[0].strip()[:3000], method='layout-parser')
+            case.field_sources['totals.'+name] = case.total_evidence[name].model_copy(deep=True)
     detail=next((p for p in pages if '影響地價區域因素分析明細表' in p['text']),None)
     if detail:
         rows=list(re.finditer(r'([^\n]*?)\s+[1-9]\s+(優|稍優|普通|稍劣|劣|無|有)\s+[1-9]\s+(優|稍優|普通|稍劣|劣|無|有)\s+('+NUM+r')\s*$',detail['text'],re.M))
@@ -101,7 +108,8 @@ def parse_case(pages, title, ruleset):
         m=re.search(r'=\(1\)[^\n]*?\s{2,}('+NUM+r')[%％]',detail['text'])
         if m:
             case.totals.regional_detail=float(m[1].replace(',',''))
-            case.field_sources['totals.regional_detail'] = Evidence(page=detail['page'],quote=m[0],method='layout-parser')
+            case.total_evidence['regional_detail'] = Evidence(page=detail['page'], quote=m[0].strip()[:3000], method='layout-parser')
+            case.field_sources['totals.regional_detail'] = case.total_evidence['regional_detail'].model_copy(deep=True)
     survey=next((p for p in pages if re.search(r'表\s*1\s*地[價价]區段勘查表',p['text'])),None)
     if survey:
         # Only unambiguous single-line measurements are extracted automatically.
@@ -130,6 +138,148 @@ def parse_case(pages, title, ruleset):
                     f.comparable=m[1]
                     case.field_sources['factors.'+f.id+'.comparable'] = f.evidence.model_copy(deep=True)
         case.extraction_warnings.append('表 1 跨欄設施與勾選符號保留人工核對；同區段才將已抽取區域條件套用雙方。')
+    _parse_dynamic_factors(case, pages, ruleset, by_id)
     if not any(f.subject is not None for f in case.factors):
         case.extraction_warnings.append('無法可靠辨識欄列；未以猜測值補齊。')
     return case
+
+
+_LOCALITY = re.compile(
+    r'([\u4e00-\u9fff]{2,4}[縣市][\u4e00-\u9fff]{1,5}(?:區|鄉|鎮|市))'
+)
+_ADDRESS_END = r'(?:號(?:之\d+)?|地號)'
+
+
+def _parse_location_fields(case, pages, ruleset):
+    """Extract explicit locality/address text without geocoding or inference."""
+
+    text = '\n'.join(page['text'] for page in pages)
+    expected = ruleset['locality']
+    localities = list(dict.fromkeys(_LOCALITY.findall(text)))
+    if expected in text:
+        case.locality = expected
+    elif ruleset.get('import_kind') == 'ocr-structured':
+        case.locality = localities[0] if len(localities) == 1 else ''
+        if case.locality:
+            case.extraction_warnings.append(
+                f'題目辨識地區為「{case.locality}」，與所選基準「{expected}」不同，已停止自動適用判定。'
+            )
+        else:
+            case.extraction_warnings.append('題目未能唯一辨識縣市行政區，請人工補填並核對基準。')
+
+    address_pattern = re.compile(
+        rf'((?:{re.escape(expected)}|[\u4e00-\u9fff]{{2,4}}[縣市][\u4e00-\u9fff]{{1,5}}(?:區|鄉|鎮|市))'
+        rf'[^\s，,；;。()（）]{{1,100}}?{_ADDRESS_END})'
+    )
+    subject_labels = ('比準地', '勘估標的', '估價標的', '宗地')
+    comparable_labels = ('比較標的一', '比較標的1', '比較標的')
+    unassigned = []
+    for line in text.splitlines():
+        addresses = list(dict.fromkeys(address_pattern.findall(line)))
+        if not addresses:
+            continue
+        if any(label in line for label in subject_labels) and not case.subject_address:
+            case.subject_address = addresses[0]
+        elif any(label in line for label in comparable_labels) and not case.comparable_address:
+            case.comparable_address = addresses[0]
+        else:
+            unassigned.extend(addresses)
+    if not case.subject_address and len(unassigned) == 1:
+        case.subject_address = unassigned[0]
+    if case.subject_address and not case.subject_name:
+        case.subject_name = case.subject_address
+    if case.comparable_address and not case.comparable_name:
+        case.comparable_name = case.comparable_address
+    if ruleset.get('import_kind') == 'ocr-structured' and not case.subject_address:
+        case.extraction_warnings.append('題目未能唯一辨識比準地詳細地址，請人工核對。')
+
+
+def _parse_dynamic_factors(case, pages, ruleset, by_id):
+    """Use only uploaded rule names/labels to conservatively read table rows."""
+
+    if ruleset.get('import_kind') != 'ocr-structured':
+        return
+    extracted = 0
+    for rule in ruleset['rules']:
+        factor = by_id.get(rule['id'])
+        if factor is None:
+            continue
+        compact_name = _compact(rule['name'])
+        if not compact_name:
+            continue
+        for page in pages:
+            for line in page['text'].splitlines():
+                compact_line = _compact(line)
+                if compact_name not in compact_line:
+                    continue
+                compact_tail = compact_line.split(compact_name, 1)[1]
+                changed = False
+                labels = [band['label'] for band in rule['bands']]
+                grade_values = _ordered_tokens(compact_tail, labels)
+                if len(grade_values) >= 2:
+                    factor.subject_grade, factor.comparable_grade = grade_values[:2]
+                    changed = True
+
+                rate_matches = re.findall(rf'({NUM})\s*[%％]', line)
+                rate_value = None
+                if len(grade_values) >= 2 and rate_matches:
+                    rate_value = rate_matches[-1]
+                elif len(grade_values) >= 2:
+                    trailing_rate = re.search(rf'({NUM})\s*$', line)
+                    if trailing_rate:
+                        rate_value = trailing_rate[1]
+
+                aliases = [
+                    value
+                    for band in rule['bands']
+                    for value in band.get('values', [])
+                    if value and value not in labels
+                ]
+                categorical = _ordered_tokens(compact_tail, aliases)
+                if len(categorical) >= 2:
+                    factor.subject, factor.comparable = categorical[:2]
+                    changed = True
+                    if rate_matches:
+                        rate_value = rate_matches[-1]
+                elif rule.get('unit') and factor.subject is None:
+                    raw = re.sub(r'^\s*\d+\s*', '', line)
+                    raw = re.sub(rf'({NUM})\s*[%％]\s*$', '', raw)
+                    numbers = [value.replace(',', '') for value in re.findall(NUM, raw)]
+                    if len(numbers) == 2:
+                        factor.subject, factor.comparable = numbers
+                        changed = True
+                        if rate_matches:
+                            rate_value = rate_matches[-1]
+
+                if rate_value is not None:
+                    factor.entered_rate = float(rate_value.replace(',', ''))
+                    changed = True
+
+                if changed:
+                    factor.evidence = Evidence(
+                        page=page['page'], quote=line.strip()[:3000], method='ruleset-row-parser'
+                    )
+                    extracted += 1
+                    break
+            if factor.evidence.method == 'ruleset-row-parser':
+                break
+    case.extraction_warnings.append(
+        f'已依所選 structured ruleset 對應 {extracted} 個因素列；其餘欄位未猜測填值。'
+    )
+
+
+def _ordered_tokens(text, values):
+    originals = {}
+    for value in values:
+        compact = _compact(value)
+        if compact and compact not in originals:
+            originals[compact] = value
+    choices = sorted(originals, key=len, reverse=True)
+    if not choices:
+        return []
+    pattern = re.compile('|'.join(re.escape(value) for value in choices))
+    return [originals[match.group(0)] for match in pattern.finditer(text)]
+
+
+def _compact(value):
+    return re.sub(r'\s+', '', unicodedata.normalize('NFKC', str(value)))

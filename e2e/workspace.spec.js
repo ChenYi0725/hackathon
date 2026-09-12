@@ -14,6 +14,9 @@ test('dashboard, evidence, fix, edit, persist and export', async ({ page }) => {
     page.getByRole('button', { name: '建立錯誤示範' }).click(),
   ]);
   const sampleCase = (await sampleResponse.json()).case;
+  const manualTotal = page.locator('.check').filter({has:page.getByRole('heading',{name:'調整百分率絕對值加總',exact:true})});
+  await expect(manualTotal).toContainText('未記錄來源頁碼');
+  await expect(manualTotal.getByRole('button',{name:/原文 p\./})).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '金山區商業用地｜錯誤示範', exact: true })).toBeVisible();
   const road=page.locator('.check').filter({has:page.getByRole('heading',{name:'面前道路寬度',exact:true})});
   await road.getByRole('button',{name:'基準 p.7'}).click();
@@ -37,12 +40,16 @@ test('dashboard, evidence, fix, edit, persist and export', async ({ page }) => {
   await expect(school.locator('.pill')).toHaveText('待確認');
   await school.getByRole('button',{name:'原文 p.3'}).click();
   await page.getByRole('button',{name:'文字版',exact:true}).click();
-  const document = await (await page.request.get('/api/documents/' + sampleCase.document_id)).json();
-  const expectedPage = Math.min(3, document.pages.length);
-  const sourcePage = document.pages.find(p => p.page === expectedPage);
-  expect(sourcePage.text.trim()).not.toBe('');
-  await expect(page.locator('#source-page')).toHaveValue(String(expectedPage));
-  await expect(page.locator('.source-text')).toHaveText(sourcePage.text);
+  if (sampleCase.document_id) {
+    const document = await (await page.request.get('/api/documents/' + sampleCase.document_id)).json();
+    const expectedPage = Math.min(3, document.pages.length);
+    const sourcePage = document.pages.find(p => p.page === expectedPage);
+    expect(sourcePage.text.trim()).not.toBe('');
+    await expect(page.locator('#source-page')).toHaveValue(String(expectedPage));
+    await expect(page.locator('.source-text')).toHaveText(sourcePage.text);
+  } else {
+    await expect(page.locator('#source-content')).toContainText('尚未連結 PDF');
+  }
   await page.screenshot({ path: 'test-results/review.png', fullPage: true });
   await page.getByRole('button',{name:'修訂紀錄',exact:true}).click();
   await expect(page.getByRole('dialog')).toContainText('採用建議：面前道路寬度');
@@ -52,6 +59,7 @@ test('dashboard, evidence, fix, edit, persist and export', async ({ page }) => {
   const report=await page.request.get(href);
   expect(report.status()).toBe(200);
   expect(await report.text()).toContain('尚有疑點或待確認項目');
+  expect(await report.text()).toContain('未記錄來源頁碼');
   await page.getByRole('button',{name:'關閉',exact:true}).click();
   await page.getByRole('button',{name:'返回案件工作台',exact:true}).click();
   await page.getByRole('textbox',{name:'搜尋案件'}).fill('錯誤示範');
@@ -59,10 +67,17 @@ test('dashboard, evidence, fix, edit, persist and export', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('scanned PDF upload through PaddleOCR and disabled Bedrock message', async ({ page }) => {
+test('scanned PDF upload through configured OCR and disabled Bedrock message', async ({ page }) => {
   test.setTimeout(120000);
   await page.goto('/');
-  await page.locator('#pdf-input').setInputFiles(path.join(__dirname,'..','tests','fixtures','synthetic-scanned.pdf'));
+  await page.getByRole('button',{name:'上傳題目',exact:true}).click();
+  await expect(page.locator('#case-upload-ruleset')).not.toHaveValue('');
+  const chooserPromise=page.waitForEvent('filechooser');
+  await page.getByRole('button',{name:'選擇題目 PDF',exact:true}).click();
+  const uploadResponse=page.waitForResponse(r=>r.url().includes('/api/documents?')&&r.request().method()==='POST',{timeout:110000});
+  await (await chooserPromise).setFiles(path.join(__dirname,'..','tests','fixtures','synthetic-scanned.pdf'));
+  const uploaded=await uploadResponse;
+  expect(uploaded.status()).toBe(200);
   await expect(page.getByRole('heading',{name:'synthetic-scanned',exact:true})).toBeVisible({timeout:110000});
   await page.getByRole('button',{name:'文字版',exact:true}).click();
   await page.locator('#source-page').selectOption('1');
@@ -94,6 +109,56 @@ test('new rule version validates and can be selected for case', async ({ page })
   await page.reload();
   await page.getByRole('button',{name:'開啟 持久化測試案件',exact:true}).click();
   await expect(page.getByRole('heading',{name:'持久化測試案件',exact:true})).toBeVisible();
+});
+
+test('ruleset upload wizard confirms source direction before question upload', async ({ page }) => {
+  await page.goto('/');
+  let releaseExtraction;
+  const existing = await (await page.request.get('/api/rulesets')).json();
+  const candidate = {
+    ...structuredClone(existing[0]),
+    name: '測試市甲區住宅用地 · OCR 評價基準',
+    version: 'ocr-browser-test',
+    locality: '測試市甲區',
+    land_use: '住宅用地',
+    import_kind: 'ocr-structured',
+    requires_confirmation: true,
+  };
+  delete candidate.id;
+  const saved = {...candidate, id: 'browser-confirmed-rule', requires_confirmation: false};
+  await page.route('**/api/rulesets', route => route.fulfill({json:[...existing, saved]}));
+  await page.route('**/api/ruleset-imports**', async route => {
+    if (route.request().url().endsWith('/confirm')) {
+      const body = route.request().postDataJSON();
+      expect(body.confirmed).toBe(true);
+      expect(body.matrix_direction).toBe('benchmark_row_target_column');
+      return route.fulfill({json:{ruleset:saved,message:'基準已建立並加入檢索。'}});
+    }
+    await new Promise(resolve => { releaseExtraction = resolve; });
+    return route.fulfill({json:{
+      document_id:'browser-source-doc',source_name:'browser-rule.pdf',
+      requires_confirmation:true,warnings:[],rulesets:[{title:'合成 structured ruleset'}],
+      candidates:[candidate],message:'合成 OCR 草稿',
+    }});
+  });
+  await page.getByRole('button',{name:'上傳評價基準表',exact:true}).click();
+  await page.locator('#ruleset-locality').fill('測試市甲區');
+  await page.locator('#ruleset-valid-from').fill('2026-01-01');
+  await page.locator('#ruleset-valid-to').fill('2026-12-31');
+  await page.locator('#ruleset-file').setInputFiles({name:'browser-rule.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-test')});
+  await page.getByRole('button',{name:'開始 OCR 與規則轉換'}).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  const conversionStatus = page.getByRole('status');
+  await expect(conversionStatus).toHaveText('正在轉換…');
+  await expect(conversionStatus).not.toContainText('PaddleOCR');
+  await expect.poll(() => Boolean(releaseExtraction)).toBe(true);
+  releaseExtraction();
+  await expect(page.getByRole('dialog')).toContainText('合成 OCR 草稿');
+  await page.locator('#matrix-direction').selectOption('benchmark_row_target_column');
+  await page.locator('#ruleset-confirmed').check();
+  await page.getByRole('button',{name:'建立基準並加入檢索'}).click();
+  await expect(page.getByRole('heading',{name:'上傳題目並開始填表'})).toBeVisible();
+  await expect(page.locator('#case-upload-ruleset')).toHaveValue(saved.id);
 });
 
 test('mobile navigation and layout fit the viewport', async ({ page }) => {

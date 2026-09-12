@@ -295,10 +295,12 @@ def test_agent_can_plan_and_query_official_adapter_without_changing_case(client)
 def test_appending_pdf_keeps_legacy_field_sources_on_original_document(client):
     p=prepared(client)
     repo=client.app.state.service.repository
-    original=repo.save_document(b'%PDF-original', 'original.pdf', [dict(page=1,text='原文件 寬度 12 / 8')])
+    original=repo.save_document(b'%PDF-original', 'original.pdf', [dict(page=1,text='原文件 寬度 12 / 8 合計 2%')])
     p['case']['document_id']=original
     p['case']['factors'][0]['evidence']=dict(page=1,quote='寬度 12 / 8',method='paddleocr-layout')
     cid=p['case']['id']
+    p=client.put('/api/cases/'+cid,json=p['case']).json()
+    p['case']['total_evidence']={'individual': dict(page=1, quote='合計 2%')}
     p=client.put('/api/cases/'+cid,json=p['case']).json()
     response=client.post(f'/api/cases/{cid}/documents',params=dict(revision=p['case']['revision'],name='new.pdf'),content=b'%PDF-new')
     assert response.status_code==200,response.text
@@ -307,6 +309,10 @@ def test_appending_pdf_keeps_legacy_field_sources_on_original_document(client):
     check=next(r for r in p['review']['checks'] if r['id']=='width')
     assert check['input_sources']['subject']['document_id']==original
     assert check['input_sources']['comparable']['document_id']==original
+    total=next(r for r in p['review']['checks'] if r['id']=='norm_individual')
+    assert total['page']==1 and total['evidence']['document_id']==original
+    assert total['evidence']['quote']=='合計 2%'
+    assert p['case']['total_evidence']=={}
     assert client.get('/api/documents/'+original+'/file').content==b'%PDF-original'
 
 

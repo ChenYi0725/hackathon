@@ -1,5 +1,6 @@
 """Valuation use cases. No imports of FastAPI, AWS, Paddle or SQLite."""
 from app.application.drafts import parse_case
+from app.application.evidence import normalized
 from app.application.rag import RagService
 from app.application.ports import FieldExtractor, PdfReader, ReviewRepository, RevisionConflict
 from app.domain.engine import review
@@ -11,10 +12,13 @@ from app.application.export_contracts import ExportUnavailable, FormRenderer
 
 
 class ReviewService:
-    def __init__(self, repository: ReviewRepository, pdf: PdfReader, ai: FieldExtractor, rag: RagService | None = None, renderer: FormRenderer | None = None):
+    def __init__(self, repository: ReviewRepository, pdf: PdfReader, ai: FieldExtractor,
+                 rag: RagService | None = None, renderer: FormRenderer | None = None,
+                 ruleset_import=None):
         self.repository, self.pdf, self.ai = repository, pdf, ai
         self.rag = rag
         self.renderer = renderer
+        self.ruleset_import = ruleset_import
 
     def export_document(self, case_id, kind, revision, generated_at):
         case = self.repository.get_case(case_id)
@@ -74,16 +78,21 @@ class ReviewService:
             if len(ids) != len(set(ids)):
                 raise ValueError('比較標的內的因素 ID 不可重複。')
         if case.document_id:
-            self.repository.get_document(case.document_id)
+            document = self.repository.get_document(case.document_id)
+            pages = {page['page']: normalized(page['text']) for page in document['pages']}
+            for evidence in case.total_evidence.values():
+                quote = normalized(evidence.quote)
+                if not quote or quote not in pages.get(evidence.page, ''):
+                    raise ValueError('計算欄位的來源頁碼或引文不符原文。')
         for docid in case.document_ids:
             self.repository.get_document(docid)
 
     def save_case(self, case: Case, *, new=False):
-        self.validate_case(case)
         previous = None if new else self.repository.get_case(case.id)
         if previous is not None and previous.revision != case.revision:
             raise RevisionConflict('案件已更新，請重新載入。')
         candidate = invalidate_confirmations(previous, case)
+        self.validate_case(candidate)
         action = '建立或匯入案件' if new else '儲存欄位與重新審查' + ('；原因：' + case.change_reason.strip() if case.change_reason.strip() else '；未提供額外修改原因')
         saved = self.repository.save_case(candidate, action, new=new)
         return self.payload(saved)
@@ -117,16 +126,17 @@ class ReviewService:
         ruleset = self.repository.get_rules(ruleset_id)
         pages = self.pdf.read(data)
         case = parse_case(pages, name.removesuffix('.pdf')[:140] or '匯入案件', ruleset)
-        case.extraction_warnings.insert(0, 'PaddleOCR 已辨識頁面文字；表格欄位及比較方向仍須人工核對。')
+        case.extraction_warnings.insert(0, 'OCR 已辨識頁面文字；表格欄位及比較方向仍須人工核對。')
+        page_methods = {page['page']: page.get('method', 'ocr') for page in pages}
         for factor in case.factors:
-            factor.evidence.method = 'paddleocr-layout'
+            factor.evidence.method = page_methods.get(factor.evidence.page, 'ocr') + '-layout'
         case.document_id = self.repository.save_document(data, name[:200], pages)
         for factor in case.factors:
             factor.evidence.document_id = case.document_id
-        for source in case.field_sources.values():
+        for source in [*case.field_sources.values(), *case.total_evidence.values()]:
             source.document_id = case.document_id
-            source.method = "paddleocr-layout"
-        return self.payload(self.repository.save_case(case, '上傳 PDF 與 PaddleOCR 辨識', new=True))
+            source.method = page_methods.get(source.page, 'ocr') + '-layout'
+        return self.payload(self.repository.save_case(case, '上傳 PDF 與 OCR 辨識', new=True))
 
     def fix(self, case_id, check_id, revision):
         case = self.repository.get_case(case_id)

@@ -20,10 +20,18 @@ class Settings:
     ocr_timeout: int = field(default_factory=lambda: int(os.getenv('OCR_TIMEOUT_SECONDS', '300')))
     ocr_dpi: int = field(default_factory=lambda: int(os.getenv('OCR_DPI', '180')))
     ocr_threads: int = field(default_factory=lambda: int(os.getenv('OCR_CPU_THREADS', '2')))
+    ocr_engine: str = field(default_factory=lambda: os.getenv('OCR_ENGINE', 'paddleocr'))
     detection_model: str = field(default_factory=lambda: os.getenv('OCR_DETECTION_MODEL', 'PP-OCRv5_mobile_det'))
     recognition_model: str = field(default_factory=lambda: os.getenv('OCR_RECOGNITION_MODEL', 'PP-OCRv5_server_rec'))
 
     def __post_init__(self):
+        if self.ocr_engine not in {'paddleocr', 'rapidocr'}:
+            raise ValueError('OCR_ENGINE 須為 paddleocr 或 rapidocr。')
+        if self.ocr_engine == 'rapidocr' and (
+            self.detection_model not in {'PP-OCRv5_mobile_det', 'PP-OCRv5_server_det'}
+            or self.recognition_model not in {'PP-OCRv5_mobile_rec', 'PP-OCRv5_server_rec'}
+        ):
+            raise ValueError('RapidOCR 本版只支援 PP-OCRv5 mobile/server det/rec 模型。')
         if self.region not in {'us-west-2', 'us-east-1'}:
             raise ValueError('競賽部署區域須為 us-west-2 或 us-east-1。')
         # Cross-region destinations need a separate policy review; this deployment is regional.

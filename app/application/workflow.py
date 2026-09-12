@@ -79,6 +79,10 @@ class WorkflowService:
                         candidate.field_sources[key] = factor_source(case, factor, side, prefix)
                     if not factor.evidence.document_id and factor.evidence.method != 'manual' and not factor.evidence.cell:
                         factor.evidence.document_id = case.document_id
+            for field, evidence in case.total_evidence.items():
+                source = evidence.model_copy(deep=True)
+                source.document_id = source.document_id or case.document_id
+                candidate.field_sources.setdefault('totals.' + field, source)
             candidate.document_id = docid
         candidate.extraction_warnings = list(dict.fromkeys([*case.extraction_warnings, *parsed['warnings']]))[:100]
         candidate = self.repo.save_case(invalidate_confirmations(case, candidate), '新增文件版本：' + name)

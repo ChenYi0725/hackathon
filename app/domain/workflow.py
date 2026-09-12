@@ -7,7 +7,7 @@ from app.domain.applicability import valuation_day
 from app.domain.engine import review
 from app.domain.models import Evidence
 
-ENGINE_VERSION = "core-2"
+ENGINE_VERSION = "core-3"
 
 
 def factor_source(case, factor, side, prefix=""):
@@ -73,8 +73,15 @@ def calculate_single(case, rules, evidence):
             row['unit'] = 'percentage_point'
         else:
             row['inputs'] = case.totals.model_dump()
-            if row.get('total_field') and 'totals.' + row['total_field'] in case.field_sources:
-                row['evidence'] = case.field_sources['totals.' + row['total_field']].model_dump()
+            field = row.get('total_field')
+            if field:
+                source = case.field_sources.get('totals.' + field) or case.total_evidence.get(field)
+                if source and source.quote:
+                    source = source.model_copy(deep=True)
+                    if not source.document_id and not source.cell and (field in case.total_evidence or source.method != 'manual'):
+                        source.document_id = case.document_id
+                    row['evidence'] = source.model_dump()
+                    row['page'] = source.page if source.document_id else None
             row['formula'] = {
                 'cross': 'regional_carried == regional_detail',
                 'absolute': 'abs(time_rate) + sum(abs(entered_factor_rates))',
@@ -106,7 +113,7 @@ def calculate(case, rules, evidence):
     for comparison in case.additional_comparisons:
         view = case.model_copy(update=dict(comparable_name=comparison.name, comparable_section=comparison.section,
                                          factors=comparison.factors, totals=comparison.totals,
-                                         totals_confirmed=comparison.totals_confirmed, additional_comparisons=[],
+                                         totals_confirmed=comparison.totals_confirmed, additional_comparisons=[], total_evidence={},
                                          field_sources={key.removeprefix('comparisons.'+comparison.id+'.'):value
                                                         for key,value in case.field_sources.items() if key.startswith('comparisons.'+comparison.id+'.')}))
         sub = calculate_single(view, rules, [e for e in evidence if e.get('comparison_id') == comparison.id])

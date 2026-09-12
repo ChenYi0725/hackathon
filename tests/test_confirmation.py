@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from app.domain.confirmation import CONFIRMATION_CONTEXT, invalidate_confirmations
-from app.domain.models import Case, Factor, Totals
+from app.domain.models import Case, Evidence, Factor, Totals
 from app.infrastructure.settings import Settings
 from app.interfaces.http import create_app
 
@@ -33,7 +33,8 @@ def test_changed_factor_invalidates_only_it_and_totals(field, value):
 def test_context_changes_invalidate_every_confirmation(field):
     old = confirmed_case()
     proposed = old.model_copy(deep=True)
-    setattr(proposed, field, 'changed')
+    value = {'document_ids': ['changed'], 'field_sources': {'totals.individual': Evidence(quote='changed')}}.get(field, 'changed')
+    setattr(proposed, field, value)
     saved = invalidate_confirmations(old, proposed)
     assert not any(f.confirmed for f in saved.factors)
     assert not saved.totals_confirmed

@@ -151,3 +151,11 @@ agentic_rag.py 執行工具白名單與有界迴圈，使用既有 EvidenceRetri
 - OCR／AI 草稿來源明確綁定文件；採用 AI 草稿同步替換 subject、comparable、entered_rate 的來源，不變更其他未採用欄位。
 - `input_sources` 額外包含 subject_grade、comparable_grade。既有三個鍵保留，不修改數值 JSON 型別或資料庫 schema。
 - `review_runs.engine_version` 使用 `core-2`；舊引擎快照仍可保存歷史，不能作為目前版本匯出或新增人工處置的依據。重新檢核保留案件 revision，但產生不同 run ID。
+
+
+### core-3 與 OCR 來源相容整合
+
+- 保留 main 的 `Case.total_evidence` 舊案件來源，與核心流程的 `field_sources` 共存；審查優先使用逐欄來源，沒有時讀取舊總計引用，不回填未記錄的頁碼。
+- 追加 PDF 前，將舊總計引用綁定原文件 ID。新增比較標的只讀 `comparisons.<id>.totals.<field>`，不繼承第一個標的的總計來源。
+- 手動修改總計清除未更新的舊引用；採用新 Excel 儲存格則保留該次新來源。來源按文件、頁碼、工作表及儲存格顯示。
+- `review_runs.engine_version` 更新為 `core-3`，舊快照保存歷史但須重新檢核才能匯出或處置。影響 domain／application／UI／快照產製；既有 JSON 欄位預設值與 SQLite schema 保持相容，無估價公式變更。

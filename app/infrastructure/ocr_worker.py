@@ -36,7 +36,7 @@ def layout_text(lines, width):
 def recognize(path, options):
     import numpy as np
     import pypdfium2 as pdfium
-    from paddleocr import PaddleOCR
+    from app.infrastructure.ocr_backends import create_predictor
     try:
         document = pdfium.PdfDocument(str(path))
         if not 1 <= len(document) <= 200:
@@ -49,34 +49,23 @@ def recognize(path, options):
                 raise ValueError
     except Exception:
         raise ValueError('invalid_pdf') from None
-    ocr = PaddleOCR(
-        device='cpu',
-        text_detection_model_name=options['detection_model'], text_recognition_model_name=options['recognition_model'],
-        use_doc_orientation_classify=False, use_doc_unwarping=False, use_textline_orientation=False,
-        cpu_threads=options['cpu_threads'], enable_mkldnn=False,
-    )
     pages = []
     try:
+        predict = create_predictor(options)
         for index in range(len(document)):
             page = document[index]
             bitmap = page.render(scale=options['dpi'] / 72)
             image = bitmap.to_pil().convert('RGB')
             width, height = image.size
-            predictions = list(ocr.predict(np.asarray(image)[:, :, ::-1].copy()))
             lines = []
-            for result in predictions:
-                value = result.json
-                if isinstance(value, str):
-                    value = json.loads(value)
-                result = value.get('res', value)
-                for text, score, box in zip(result.get('rec_texts', []), result.get('rec_scores', []), result.get('rec_boxes', [])):
-                    if not text.strip() or not math.isfinite(float(score)):
-                        continue
-                    lines.append({'text': text, 'confidence': round(float(score), 4), 'bbox': [int(v) for v in box]})
+            for text, score, box in predict(np.asarray(image)[:, :, ::-1].copy()):
+                if not text.strip() or not math.isfinite(float(score)):
+                    continue
+                lines.append({'text': text, 'confidence': round(float(score), 4), 'bbox': [int(v) for v in box]})
             text = layout_text(lines, width)
             if len(text) > 100000:
                 raise ValueError('invalid_pdf')
-            pages.append({'page': index + 1, 'text': text, 'method': 'paddleocr', 'width': width, 'height': height, 'lines': lines})
+            pages.append({'page': index + 1, 'text': text, 'method': options.get('engine', 'paddleocr'), 'width': width, 'height': height, 'lines': lines})
             image.close()
             bitmap.close()
             page.close()

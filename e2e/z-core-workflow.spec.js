@@ -152,3 +152,22 @@ test('copy case replaces the active review snapshot and keeps the source unchang
  expect(await (await request.get('/api/cases/'+source.id)).json()).toEqual(original);
  expect(errors).toEqual([]);
 });
+
+
+test('additional comparison total opens its own Excel source', async ({page, request}) => {
+ const fs=require('node:fs');
+ const c=await createCase(request);
+ c.additional_comparisons=[{id:'second',name:'第二標的',totals:{individual:0}}];
+ let p=await (await request.put('/api/cases/'+c.id,{data:c})).json();
+ p=await (await request.post(`/api/cases/${c.id}/documents?revision=${p.case.revision}&name=totals.xlsx`,{data:fs.readFileSync(path.join(__dirname,'../tests/fixtures/core-workflow.xlsx'))})).json();
+ const documentId=p.document_id;
+ p=await (await request.post(`/api/cases/${c.id}/apply-cell`,{data:{revision:p.case.revision,document_id:documentId,sheet:'勘查',cell:'J11',target:'comparisons.second.totals.individual'}})).json();
+ expect(p.case.totals.individual).toBe(2);
+ expect(p.case.additional_comparisons[0].totals.individual).toBe(12);
+ await page.goto('/');
+ await page.getByRole('button',{name:'開啟 '+c.title,exact:true}).click();
+ await page.locator('[data-action="source"][data-id="second:norm_individual"]').click();
+ await expect(page.locator('.source-text')).toContainText('J11: 12');
+ await expect(page.locator('#source-quote')).toHaveText('12');
+ await expect(page.locator('#source-page')).toHaveValue('1');
+});

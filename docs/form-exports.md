@@ -4,11 +4,14 @@
 
 | 下載項目 | kind | 內容 |
 | --- | --- | --- |
+| 完整審查 Excel | review-xlsx | 案件摘要、任意 ruleset 的區域／個別因素與審查結果 |
 | 表3 Excel | table3-xlsx | 比準地的地價區段勘查表，以及完整填值／審核明細 |
 | 表4 Excel | table4-xlsx | 比較法調查估價表，以及填值／審核明細 |
 | 表5 Excel | table5-xlsx | 住宅用地区域因素分析明細表，以及填值／審核明細 |
 
 三個表分開下載，不合併為同一份 Excel。輸出保留模板工作表、合併、欄寬、基本樣式及原有公式，另附填值與審核明細；不修改原始模板。舊版列表與分表 PDF 產製、下載與列印入口已移除；核心流程另提供有效檢核快照的 PDF 審查摘要與 ZIP，見 [核心流程](core-workflow.md)。
+
+`review-xlsx` 不使用固定儲存格或因素 ID，因此是上傳其他地區 ruleset 後的主要輸出；它直接依案件綁定的規則列出所有因素。三個 `table*-xlsx` 則保留既有固定模板相容用途。
 
 ## 設定
 
@@ -30,19 +33,19 @@
 
 ## 契約與相容
 
-新增 application/export_contracts.py 的 FormRenderer / ExportArtifact 與 ReviewService.export_document，用 bootstrap 注入 TemplateFormRenderer。未變更 Case、資料庫 schema、原有 ports 或既有匯出格式。這是 v1 renderer 切片，並非 docs/contracts.md 尚未實作的 v2 CalculationResult 契約。
+既有 FormRenderer / ExportArtifact 與 ReviewService.export_document 繼續使用同一份案件 revision。Case 以有預設值的 `subject_address`／`comparable_address` 做向後相容擴充；SQLite 表格 schema 未變。ruleset 確認另增加 repository port，讓規則版本與既有 OCR 文件的檢索索引在同一 transaction 保存。既有匯出 kind 不變，新增 `review-xlsx`。
 
 GET /api/cases/{id}/export/{kind}?revision={revision}
 
-- 三種 Excel 下載必須指定 revision。未指定為 422、過期為 409、模板未設定為 503。
+- 四種 Excel 下載必須指定 revision。未指定為 422、過期為 409；固定模板未設定為 503。
 - 同一份案件快照用於審核與輸出；產製後再次檢查 revision，過期就拒絕回傳。
 - Response 包含正確 Content-Type、attachment 檔名、X-Case-Revision 與 no-store。
 - 下載不新增 audit、不修改案件；UI 匯出前先保存畫面變更，產製失敗時保留錯誤提示。
 
 ## 驗證
 
-tests/test_form_exports.py 使用合成模板檢查分表、值／合併保留、零值、公式注入、原檔不變、已移除的 PDF 端點回傳 404、revision 衝突、產製途中修改，以及缺少模板。
+tests/test_form_exports.py 使用合成模板檢查分表、動態完整 Excel、值／合併保留、零值、公式注入、原檔不變、已移除的 PDF 端點回傳 404、revision 衝突、產製途中修改，以及缺少模板。
 
-執行 `python -m scripts.preview_form_exports` 可產生合成案例套入預設模板的三份 Excel，預設存於 `.analysis/form-preview/`。這些是合成預覽，並非真實題目完成結果。`e2e/exports.spec.js` 驗證三種下載、舊版分表 PDF 選項已移除、快照 PDF 入口保留及窄螢幕錯誤提示。
+執行 `python -m scripts.preview_form_exports` 可產生合成案例套入預設模板的三份 Excel，預設存於 `.analysis/form-preview/`。這些是合成預覽，並非真實題目完成結果。`e2e/exports.spec.js` 驗證三種下載、舊版分表 PDF 選項已移除、快照 PDF 入口保留及窄螢幕錯誤提示。 另保留動態完整審查 Excel 與基準上傳確認流程的瀏覽器驗證。
 
 本機 Windows 回歸以 PYTHONUTF8=1 執行，避免既有測試用系統 CP950 讀取 UTF-8 fixture。雲端與真實 OCR 不在此切片驗收範圍。

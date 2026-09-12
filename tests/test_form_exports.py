@@ -64,6 +64,18 @@ def test_workbooks_fill_separate_forms_keep_zero_and_literal_text(templates):
     assert all(p.read_bytes() == data for p, data in source_bytes.items())
 
 
+def test_generic_review_workbook_exports_all_rules_without_fixed_cell_mapping(tmp_path):
+    case = sample_case(False)
+    case.subject_address = '=HYPERLINK("https://example.invalid")'
+    artifact = render(TemplateFormRenderer(tmp_path / 'no-templates'), 'review-xlsx', case)
+    workbook = load_workbook(io.BytesIO(artifact.data))
+    assert workbook.sheetnames == ['案件摘要', '區域因素', '個別因素', '審查結果']
+    assert workbook['案件摘要']['B9'].value == case.subject_address
+    assert workbook['案件摘要']['B9'].data_type == 's'
+    assert workbook['個別因素'].max_row == 20
+    assert workbook['區域因素'].max_row == 29
+
+
 def test_legacy_openpyxl_defined_name_collection_is_supported(templates, monkeypatch):
     """The deployed Anaconda image uses openpyxl 3.0's DefinedNameList."""
     import openpyxl.workbook.defined_name as defined_name_module

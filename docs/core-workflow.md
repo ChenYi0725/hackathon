@@ -126,3 +126,8 @@ PDF 驗收包含 pypdf 中文／儲存格文字比對及 PDFium 轉圖檢視；E
 - 本機無 token 時只接受 loopback client 與可信 Host；知道 ID 不提供遠端存取權。`APP_ACCESS_TOKEN` 可保護私有 API，須由受控的驗證代理提供 Authorization；尚無多人帳號／每案角色管理或公開部署。
 - `.env` 不進 Git；AWS 憑證仍由 SDK 查找，不送前端或 OCR 子程序。新測試使用合成案件；第三方只查官方開放清冊，不使用 Google Places／Routes 快取。
 - 模型、外部 API 與 OCR 失敗都不會產生全案通過；已有來源與人工處置仍可在草稿匯出中查看。
+
+
+## main 整合（core-3）
+
+同步已合併的 OCR 引擎切換、動態基準匯入與 Agent 引用修復。總計來源同時支援既有 `total_evidence` 與逐欄來源，追加文件保留原引用、多標的不共用來源；手動改值清除舊引用。快照升為 `core-3`，舊資料保留，重新檢核才能產生目前可用的匯出。CI 安裝 PDF 中文字型，避免 Linux 因缺字型而回傳 503。矩陣方向未人工確認的 OCR 草稿仍不能直接執行。

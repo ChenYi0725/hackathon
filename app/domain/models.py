@@ -51,6 +51,9 @@ class Comparison(StrictModel):
     totals: Totals = Field(default_factory=Totals)
     totals_confirmed: bool = False
 
+TotalField = Literal['regional_detail', 'regional_carried', 'individual', 'absolute',
+                     'time_rate', 'normal_price', 'adjusted_price', 'trial_price', 'weight']
+
 
 class Case(StrictModel):
     id: str = ''
@@ -60,6 +63,8 @@ class Case(StrictModel):
     valuation_date: str = Field(default='',max_length=40)
     subject_name: str = Field(default='',max_length=200)
     comparable_name: str = Field(default='',max_length=200)
+    subject_address: str = Field(default='', max_length=300)
+    comparable_address: str = Field(default='', max_length=300)
     subject_section: str = ''
     comparable_section: str = ''
     locality: str = '新北市金山區'
@@ -73,6 +78,8 @@ class Case(StrictModel):
     source_kind: str = 'manual'
     factors: list[Factor] = Field(default_factory=list,max_length=100)
     totals: Totals = Field(default_factory=Totals)
+    # Absent on legacy/manual cases; never infer a page from a form number.
+    total_evidence: dict[TotalField, Evidence] = Field(default_factory=dict)
     totals_confirmed: bool = False
     notes: str = Field(default='',max_length=12000)
     change_reason: str = Field(default='', max_length=3000)

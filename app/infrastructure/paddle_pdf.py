@@ -1,4 +1,4 @@
-"""PaddleOCR PDF adapter. The OCR runtime runs in a bounded child process."""
+"""Local PDF OCR adapter. The selected runtime runs in a bounded child process."""
 import hashlib
 import json
 import os
@@ -10,7 +10,7 @@ from app.application.ports import ExtractionUnavailable
 from app.infrastructure.settings import ROOT
 
 
-class PaddlePdfReader:
+class LocalPdfReader:
     def __init__(self, settings, repository=None):
         self.settings, self.repository = settings, repository
 
@@ -20,10 +20,11 @@ class PaddlePdfReader:
         if len(data) > 20 * 1024 * 1024:
             raise ValueError('PDF 上限 20 MB。')
         options = {
+            'engine': self.settings.ocr_engine,
             'dpi': self.settings.ocr_dpi, 'cpu_threads': self.settings.ocr_threads,
             'detection_model': self.settings.detection_model, 'recognition_model': self.settings.recognition_model,
         }
-        key = 'ocr:' + hashlib.sha256(data + json.dumps(options, sort_keys=True).encode() + b'paddle-pdf-v1').hexdigest()
+        key = 'ocr:' + hashlib.sha256(data + json.dumps(options, sort_keys=True).encode() + b'local-pdf-v2').hexdigest()
         if self.repository:
             cached = self.repository.cache_get(key)
             if cached is not None:
@@ -39,16 +40,20 @@ class PaddlePdfReader:
                     cwd=ROOT, env=env, capture_output=True, timeout=self.settings.ocr_timeout,
                 )
             except subprocess.TimeoutExpired:
-                raise ExtractionUnavailable('PaddleOCR 處理逾時，請拆分 PDF 或調整 OCR_TIMEOUT_SECONDS。') from None
+                raise ExtractionUnavailable('OCR 處理逾時，請拆分 PDF 或調整 OCR_TIMEOUT_SECONDS。') from None
             if not output.exists():
-                raise ExtractionUnavailable('PaddleOCR 無法啟動。請安裝 requirements-ocr.txt 並確認模型可下載。')
+                raise ExtractionUnavailable('OCR 無法啟動。請安裝所選 OCR 引擎的依賴並確認模型可下載。')
             result = json.loads(output.read_text())
             if completed.returncode or 'error' in result:
                 code = result.get('error', '')
                 if code == 'invalid_pdf':
                     raise ValueError('PDF 無法開啟、受到密碼保護，或頁面超出處理限制。')
-                raise ExtractionUnavailable('PaddleOCR 辨識失敗。請確認 CPU 套件及模型檔案，或縮小文件範圍。')
+                raise ExtractionUnavailable('OCR 辨識失敗。請確認所選 CPU 引擎套件及模型檔案，或縮小文件範圍。')
         pages = result['pages']
         if self.repository:
             self.repository.cache_put(key, pages)
         return pages
+
+
+# Compatibility for existing scripts; runtime selection comes from Settings.
+PaddlePdfReader = LocalPdfReader
