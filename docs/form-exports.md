@@ -4,22 +4,21 @@
 
 | 下載項目 | kind | 內容 |
 | --- | --- | --- |
-| 列表審查報告 PDF | report-pdf | 逐項狀態、原填值、預期值、說明、來源頁及基準版本 |
-| 表3 Excel／PDF | table3-xlsx / table3-pdf | 比準地、比較標的1各一張地價區段勘查表，以及完整填值／審核明細 |
-| 表4 Excel／PDF | table4-xlsx / table4-pdf | 比較法調查估價表，以及填值／審核明細 |
-| 表5 Excel／PDF | table5-xlsx / table5-pdf | 住宅用地区域因素分析明細表，以及填值／審核明細 |
+| 表3 Excel | table3-xlsx | 比準地的地價區段勘查表，以及完整填值／審核明細 |
+| 表4 Excel | table4-xlsx | 比較法調查估價表，以及填值／審核明細 |
+| 表5 Excel | table5-xlsx | 住宅用地区域因素分析明細表，以及填值／審核明細 |
 
-三個表分開下載，不合併為同一份 Excel。Excel 保留指定工作表的儲存格、合併、欄寬與基本樣式，移除其他隱藏範例工作表、外部連結及範例公式。原始模板不變更。PDF 由後端 ReportLab 直接生成，表3／表5採 A3 直式、表4採 A3 橫式，再附可分頁的完整明細；不是瀏覽器列印或 Excel 自動化。極長儲存格內容在表內指向附錄全文。
+三個表分開下載，不合併為同一份 Excel。輸出保留模板工作表、合併、欄寬、基本樣式及原有公式，另附填值與審核明細；不修改原始模板。PDF 產製、下載與列印入口已移除。
 
 ## 設定
 
-安裝 requirements.txt。將三份原始 xlsx 放入 problem_files，或以 FORM_TEMPLATE_DIR 指向模板目錄。每種檔案必須唯一：
+安裝 requirements.txt。預設使用 [out_put_teamplate/](../out_put_teamplate/README.md) 中的三份 Excel 範例，也可用 FORM_TEMPLATE_DIR 指向其他模板目錄。每種檔案必須唯一：
 
 - 表3*.xlsx，內含「表3區段勘查表」。
 - 表4*.xlsx，內含「表4比較法調查估價表」。
 - 表5*.xlsx，內含「表5-1區域因素明細表(住)」。
 
-模板不提交 Git；部署時需另提供。PDF_FONT_PATH 可指定有合法使用權的繁體中文 TrueType 字型（.ttf 或 TrueType 輪廓的 .ttc）。Windows 自動尋找微軟正黑體；Linux 另嘗試 AR PL UMing。找不到字型時 PDF 回 503 並提示設定，Excel 不依賴 PDF 字型。字型嵌入 PDF，不複製系統字型至 Git。
+此目錄收錄現有表3／表4／表5範例原檔，未填入目前案件資料。預覽輸出另存於 `.analysis/form-preview/`。
 
 ## 資料語意與限制
 
@@ -35,15 +34,15 @@
 
 GET /api/cases/{id}/export/{kind}?revision={revision}
 
-- 新增七種下載必須指定 revision。未指定為 422、過期為 409、模板／字型未設定為 503。
+- 三種 Excel 下載必須指定 revision。未指定為 422、過期為 409、模板未設定為 503。
 - 同一份案件快照用於審核與輸出；產製後再次檢查 revision，過期就拒絕回傳。
 - Response 包含正確 Content-Type、attachment 檔名、X-Case-Revision 與 no-store。
 - 下載不新增 audit、不修改案件；UI 匯出前先保存畫面變更，產製失敗時保留錯誤提示。
 
 ## 驗證
 
-tests/test_form_exports.py 使用合成模板檢查分表、值／合併保留、零值、公式注入、原檔不變、PDF 中文及長文字、revision 衝突、產製途中修改，以及缺少模板。
+tests/test_form_exports.py 使用合成模板檢查分表、值／合併保留、零值、公式注入、原檔不變、已移除的 PDF 端點回傳 404、revision 衝突、產製途中修改，以及缺少模板。
 
-執行 scripts.preview_form_exports --template-dir problem_files 可產生合成案例套入原模板的 Excel、PDF 與首頁圖片；圖片驗證另需 pypdfium2。這些是合成預覽，並非真實題目完成結果。e2e/exports.spec.js 在設定 FORM_TEMPLATE_DIR 後驗證七種真實下載及窄螢幕錯誤提示。
+執行 `python -m scripts.preview_form_exports` 可產生合成案例套入預設模板的三份 Excel，預設存於 `.analysis/form-preview/`。這些是合成預覽，並非真實題目完成結果。`e2e/exports.spec.js` 驗證三種下載、PDF 選項已移除及窄螢幕錯誤提示。
 
 本機 Windows 回歸以 PYTHONUTF8=1 執行，避免既有測試用系統 CP950 讀取 UTF-8 fixture。雲端與真實 OCR 不在此切片驗收範圍。

@@ -2,7 +2,7 @@
 
 本機估價審查工作台。上傳的 PDF 由 **PaddleOCR 在 CPU 辨識**；需要 AI 整理欄位時，使用 **Amazon Bedrock**。計算、級距與矩陣仍由確定性規則引擎執行，AI 回傳草稿須人工確認。
 
-「匯出成果」保留列表報告，新增列表 PDF，以及表3／表4／表5各自的 Excel、PDF 下載。使用目前已儲存案件填值，缺資料明示待補；模板與中文字型設定見 [分表輸出](docs/form-exports.md)。
+「匯出成果」提供 HTML 列表報告、CSV、JSON，以及表3／表4／表5各自的 Excel 下載。PDF 輸出已移除。表格範例位於 [out_put_teamplate/](out_put_teamplate/README.md)，預設以這些範例作為填值模板；設定見 [分表輸出](docs/form-exports.md)。
 
 > **開發者／coding agent 請先讀：[AGENTS.md](AGENTS.md) → [TODO 與 DDD 分工](docs/TODO.md) → 負責目錄的 `AGENTS.md`。** TODO 包含介面規劃、前置任務與驗收條件；每項工作使用自己的功能分支，經 PR 審查。
 
@@ -81,10 +81,10 @@ flowchart TB
     SAVE --> RULES["domain：Decimal 計算與規則審查<br/>級距、矩陣、加總及跨表一致性"]
     RULES --> RESULT["通過／疑似錯誤／待確認／資料不足"]
     RESULT -->|繼續修正| HUMAN
-    RESULT --> EXPORT["匯出 JSON、CSV、HTML 報告與整理書表<br/>HTML 可由瀏覽器列印或另存 PDF"]
+    RESULT --> EXPORT["匯出 JSON、CSV、HTML 報告與整理書表<br/>表3／表4／表5另可下載 Excel"]
 ```
 
-載入案件時也會計算目前審查狀態；未確認資料不會自動通過。儲存時若 revision 已過期，回傳衝突並要求重新載入。尚有疑點的案件仍可匯出，報告會保留待確認狀態。**後端直接產生 PDF、原書表套印、多比較標的及 GraphRAG 仍列於 [TODO](docs/TODO.md)，未包含在已完成流程中。**
+載入案件時也會計算目前審查狀態；未確認資料不會自動通過。儲存時若 revision 已過期，回傳衝突並要求重新載入。尚有疑點的案件仍可匯出，報告會保留待確認狀態。**原書表套印、多比較標的及 GraphRAG 仍列於 [TODO](docs/TODO.md)，未包含在已完成流程中。**
 
 ### AWS AI 抽取子流程
 

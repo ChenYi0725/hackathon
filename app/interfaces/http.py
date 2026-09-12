@@ -186,7 +186,7 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
 
     @app.get('/api/cases/{cid}/export/{kind}')
     def export(cid: str, kind: str, revision: int | None = None):
-        if kind in {'report-pdf', 'table3-xlsx', 'table3-pdf', 'table4-xlsx', 'table4-pdf', 'table5-xlsx', 'table5-pdf'}:
+        if kind in {'table3-xlsx', 'table4-xlsx', 'table5-xlsx'}:
             if revision is None:
                 raise HTTPException(422, '請提供案件 revision，確保匯出版本一致。')
             try:
