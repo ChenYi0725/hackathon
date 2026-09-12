@@ -7,7 +7,7 @@ const labels = {pass:'通過',error:'疑似錯誤',pending:'待確認',missing:'
 const totalNames={normal_price:'土地正常單價（元／㎡）',time_rate:'日期調整率（%）',adjusted_price:'估價基準日單價（元／㎡）',regional_detail:'表 5-2 區域總修正數（%）',regional_carried:'表 4 區域調整率（%）',individual:'個別因素合計（%）',absolute:'調整率絕對值加總（%）',trial_price:'試算價格（元／㎡）',weight:'比較標的權重（%）'};
 const state={view:'home',cases:[],rulesets:[],current:null,review:null,doc:null,tab:'checks',filter:'all',scope:'individual',page:3,sourceMode:'pdf',quote:'',dirty:false,health:{},search:'',ruleSearch:'',rulesetDraft:null,pendingRulesetId:null};
 let toastTimer;
-function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),6000)}
+function toast(message){const dialog=$('#dialog');if(dialog.open){let notice=$('#dialog-notice',dialog);if(!notice){notice=document.createElement('div');notice.id='dialog-notice';notice.className='notice';notice.setAttribute('role','alert');$('.dialog-body',dialog).prepend(notice)}notice.textContent=message;notice.scrollIntoView({block:'nearest'});return}$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),6000)}
 async function api(url,options={}){const res=await fetch(url,{...options,headers:options.body && typeof options.body==='string'?{'Content-Type':'application/json',...options.headers}:options.headers});if(!res.ok){let text=await res.text();try{const j=JSON.parse(text);text=typeof j.detail==='string'?j.detail:JSON.stringify(j.detail)}catch{}throw new Error(text.slice(0,500))}return res.json()}
 async function busy(message,fn){const el=document.createElement('div');el.className='busy-overlay';el.setAttribute('role','status');el.innerHTML=`<span class="spinner"></span><span>${esc(message)}</span>`;document.body.append(el);try{return await fn()}catch(e){toast(e.message);return null}finally{el.remove()}}
 const pill=(status,text)=>`<span class="pill ${status}">${esc(text || labels[status])}</span>`;
@@ -84,11 +84,11 @@ async function aiPreview(approved=false){
  modal('AI 抽取草稿',`<div class="notice info">${esc(data.message)}<br>勾選要套用的欄位，套用會更新兩側條件與修正率，並重設為待確認。</div>${data.factors.map((f,i)=>`<div class="ai-card"><label><input type="checkbox" data-ai-index="${i}">${esc(activeRules().rules.find(r=>r.id===f.id)?.name||f.id)}</label><p>比準地 ${esc(f.subject??'未辨識')} ／ 比較標的 ${esc(f.comparable??'未辨識')} ／ 修正率 ${fmt(f.entered_rate)}%</p><small>p.${f.evidence.page} · ${esc(f.evidence.quote)}</small></div>`).join('')}`,`<button data-action="close">取消</button><button class="primary" data-action="apply-ai">套用勾選草稿</button>`)
 }
 function showRulesetUpload(){
- modal('上傳影響地價評價基準明細表',`<div class="workflow-steps"><b>1 上傳基準</b><span>2 上傳題目</span><span>3 核對填表</span><span>4 匯出</span></div><p>請先指定表格應屬的縣市行政區。系統只用它核對標題，不做地址或地理推定。</p><div class="formgrid"><label>縣市行政區<input id="ruleset-locality" placeholder="例如：新北市樹林區"></label><label>適用起日<input id="ruleset-valid-from" type="date"></label><label>適用迄日（含）<input id="ruleset-valid-to" type="date"></label><label class="full">評價基準明細表 PDF<input id="ruleset-file" type="file" accept="application/pdf,.pdf"></label></div><div class="notice">OCR 結果不會直接成為正式規則。建立前必須核對原文與矩陣方向；無法安全轉換的因素會保留待確認。</div>`,`<button data-action="close">取消</button><button class="primary" data-action="extract-ruleset">開始 OCR 與規則轉換</button>`)
+ modal('上傳影響地價評價基準明細表',`<div class="workflow-steps"><b>1 上傳基準</b><span>2 上傳題目</span><span>3 核對填表</span><span>4 匯出</span></div><p>請先指定表格應屬的縣市行政區。系統只用它核對標題，不做地址或地理推定。</p><div class="formgrid"><label>縣市行政區（必填）<input id="ruleset-locality" placeholder="例如：新北市樹林區"></label><label>適用起日（可於確認時填寫）<input id="ruleset-valid-from" type="date"></label><label>適用迄日（含，可於確認時填寫）<input id="ruleset-valid-to" type="date"></label><label class="full">評價基準明細表 PDF（必填，上限 20 MB）<input id="ruleset-file" type="file" accept="application/pdf,.pdf"></label></div><div class="notice">OCR 結果不會直接成為正式規則。建立前必須核對原文與矩陣方向；無法安全轉換的因素會保留待確認。</div>`,`<button data-action="close">取消</button><button class="primary" data-action="extract-ruleset">開始 OCR 與規則轉換</button>`)
 }
 function showRulesetDraft(){
  const draft=state.rulesetDraft,candidates=draft.candidates||[];
- modal('確認 structured ruleset 草稿',`<div class="workflow-steps"><b>1 確認基準</b><span>2 上傳題目</span><span>3 核對填表</span><span>4 匯出</span></div><div class="notice info">${esc(draft.message)}</div>${draft.warnings?.length?`<div class="notice">${draft.warnings.map(esc).join('<br>')}</div>`:''}<div class="formgrid"><label class="full">候選基準<select id="ruleset-candidate">${candidates.map((c,i)=>`<option value="${i}">${esc(c.name)} / ${esc(c.version)} · ${c.rules.length} 項因素</option>`).join('')}</select></label><label class="full">來源矩陣方向<select id="matrix-direction"><option value="">請核對表頭後選擇</option><option value="target_row_benchmark_column">來源列＝目標／比較區段；欄＝基準／比準地</option><option value="benchmark_row_target_column">來源列＝基準／比準地；欄＝目標／比較區段</option></select></label></div><details><summary>檢視 structured ruleset JSON</summary><pre class="draft-json">${esc(JSON.stringify(draft.rulesets,null,2))}</pre></details><label style="margin-top:16px"><input id="ruleset-confirmed" type="checkbox">我已核對來源、適用地區、期間與矩陣方向</label>`,`<button data-action="close">稍後處理</button><button class="primary" data-action="confirm-ruleset">建立基準並加入檢索</button>`)
+ modal('確認 structured ruleset 草稿',`<div class="workflow-steps"><b>1 確認基準</b><span>2 上傳題目</span><span>3 核對填表</span><span>4 匯出</span></div><div class="notice info">${esc(draft.message)}</div><p><a href="/api/documents/${encodeURIComponent(draft.document_id)}/file" target="_blank" rel="noopener">開啟上傳的基準 PDF 核對原文 ↗</a></p>${draft.warnings?.length?`<div class="notice">${draft.warnings.map(esc).join('<br>')}</div>`:''}<div class="formgrid"><label class="full">候選基準<select id="ruleset-candidate">${candidates.map((c,i)=>`<option value="${i}">${esc(c.name)} / ${esc(c.version)} · ${c.rules.length} 項因素</option>`).join('')}</select></label><label>適用起日（必填）<input id="ruleset-confirm-from" type="date" value="${esc(draft.validFrom)}"></label><label>適用迄日（含，必填）<input id="ruleset-confirm-to" type="date" value="${esc(draft.validTo)}"></label><label class="full">來源矩陣方向<select id="matrix-direction"><option value="">請核對表頭後選擇</option><option value="target_row_benchmark_column">來源列＝目標／比較區段；欄＝基準／比準地</option><option value="benchmark_row_target_column">來源列＝基準／比準地；欄＝目標／比較區段</option></select></label></div><details><summary>檢視 structured ruleset JSON</summary><pre class="draft-json">${esc(JSON.stringify(draft.rulesets,null,2))}</pre></details><label style="margin-top:16px"><input id="ruleset-confirmed" type="checkbox">我已核對來源、適用地區、期間與矩陣方向</label>`,`<button data-action="close">稍後處理</button><button class="primary" data-action="confirm-ruleset">建立基準並加入檢索</button>`)
 }
 function showCaseUpload(rulesetId){
  const selected=rulesetId||state.rulesetView||state.rulesets[0]?.id;
@@ -109,19 +109,25 @@ document.addEventListener('click',async e=>{const button=e.target.closest('[data
  if(a==='ruleset-upload'){if(state.dirty&&!await save())return;showRulesetUpload();return}
  if(a==='extract-ruleset'){
   const file=$('#ruleset-file')?.files[0],locality=$('#ruleset-locality')?.value.trim(),validFrom=$('#ruleset-valid-from')?.value,validTo=$('#ruleset-valid-to')?.value;
-  if(!file||!locality||!validFrom||!validTo||validFrom>validTo)throw new Error('請填寫地區、有效期間並選擇基準 PDF。');
+  if(!locality)throw new Error('請填寫與 PDF 表格標題一致的縣市行政區。');
+  if(!file)throw new Error('請選擇評價基準明細表 PDF（上限 20 MB）。');
+  if(validFrom&&validTo&&validFrom>validTo)throw new Error('適用起日不可晚於迄日。');
   if(file.size>20*1024*1024)throw new Error('PDF 上限 20 MB。');
   $('#dialog').close();
   const query=new URLSearchParams({name:file.name,expected_locality:locality});
-  const draft=await busy('正在轉換…',()=>api('/api/ruleset-imports?'+query,{method:'POST',body:file,headers:{'Content-Type':'application/pdf'}}));
+  const draft=await busy('正在轉換…',async()=>{try{return await api('/api/ruleset-imports?'+query,{method:'POST',body:file,headers:{'Content-Type':'application/pdf'}})}catch(error){$('#dialog').showModal();throw error}});
   if(!draft)return;state.rulesetDraft={...draft,validFrom,validTo};showRulesetDraft();return;
  }
  if(a==='confirm-ruleset'){
   const draft=state.rulesetDraft,index=Number($('#ruleset-candidate')?.value||0),direction=$('#matrix-direction')?.value;
   if(!draft||!draft.candidates[index])throw new Error('找不到待確認的 ruleset 草稿。');
+  draft.validFrom=$('#ruleset-confirm-from').value;draft.validTo=$('#ruleset-confirm-to').value;
+  if(!draft.validFrom||!draft.validTo)throw new Error('建立基準前請依來源填寫適用起日與迄日。');
+  if(draft.validFrom>draft.validTo)throw new Error('適用起日不可晚於迄日。');
   if(!direction)throw new Error('請依原表表頭確認矩陣方向。');
   if(!$('#ruleset-confirmed')?.checked)throw new Error('請先勾選人工確認。');
-  const result=await busy('正在建立基準版本並加入本機檢索…',()=>api('/api/ruleset-imports/confirm',{method:'POST',body:JSON.stringify({document_id:draft.document_id,candidate:draft.candidates[index],valid_from:draft.validFrom,valid_to:draft.validTo,matrix_direction:direction,confirmed:true})}));
+  $('#dialog').close();
+  const result=await busy('正在建立基準版本並加入本機檢索…',async()=>{try{return await api('/api/ruleset-imports/confirm',{method:'POST',body:JSON.stringify({document_id:draft.document_id,candidate:draft.candidates[index],valid_from:draft.validFrom,valid_to:draft.validTo,matrix_direction:direction,confirmed:true})})}catch(error){$('#dialog').showModal();throw error}});
   if(!result)return;state.rulesets=await api('/api/rulesets');state.rulesetView=result.ruleset.id;state.rulesetDraft=null;toast(result.message);showCaseUpload(result.ruleset.id);return;
  }
  if(a==='upload'){if(state.dirty&&!await save())return;showCaseUpload();return}

@@ -152,6 +152,54 @@ test('ruleset upload wizard confirms source direction before question upload', a
   await expect(page.locator('#case-upload-ruleset')).toHaveValue(saved.id);
 });
 
+for (const width of [1440, 390]) {
+  test(`ruleset upload validates visibly and retains failed uploads at width ${width}`, async ({ page }) => {
+    await page.setViewportSize({width, height: 844});
+    await page.goto('/');
+    const candidate = (await (await page.request.get('/api/rulesets')).json())[0];
+    let attempts = 0;
+    await page.route('**/api/ruleset-imports**', async route => {
+      if (route.request().url().endsWith('/confirm')) {
+        return route.fulfill({status:503,json:{detail:'儲存暫時失敗，請重試。'}});
+      }
+      attempts++;
+      if (attempts === 1) return route.fulfill({status:503,json:{detail:'OCR 處理逾時，請重試。'}});
+      return route.fulfill({json:{document_id:'retry-source',candidates:[candidate],rulesets:[],message:'OCR 草稿'}});
+    });
+    await page.getByRole('button',{name:'上傳評價基準表',exact:true}).click();
+    const start = page.getByRole('button',{name:'開始 OCR 與規則轉換'});
+    await start.click();
+    await expect(page.getByRole('dialog').getByRole('alert')).toContainText('縣市行政區');
+    expect(attempts).toBe(0);
+    await page.locator('#ruleset-locality').fill('測試市甲區');
+    await start.click();
+    await expect(page.getByRole('dialog').getByRole('alert')).toContainText('請選擇');
+    await page.locator('#ruleset-file').setInputFiles({name:'retry.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-test')});
+    await start.click();
+    await expect(page.getByRole('dialog').getByRole('alert')).toContainText('OCR 處理逾時');
+    await expect(page.locator('#ruleset-locality')).toHaveValue('測試市甲區');
+    expect(await page.locator('#ruleset-file').evaluate(el => el.files[0].name)).toBe('retry.pdf');
+    await start.click();
+    await expect(page.getByRole('link',{name:'開啟上傳的基準 PDF 核對原文 ↗'})).toHaveAttribute('href','/api/documents/retry-source/file');
+    const confirm = page.getByRole('button',{name:'建立基準並加入檢索'});
+    await confirm.click();
+    await expect(page.getByRole('dialog').getByRole('alert')).toContainText('適用起日與迄日');
+    await page.locator('#ruleset-confirm-from').fill('2026-12-31');
+    await page.locator('#ruleset-confirm-to').fill('2026-01-01');
+    await confirm.click();
+    await expect(page.getByRole('dialog').getByRole('alert')).toContainText('起日不可晚於迄日');
+    await page.locator('#ruleset-confirm-from').fill('2026-01-01');
+    await page.locator('#ruleset-confirm-to').fill('2026-12-31');
+    await page.locator('#matrix-direction').selectOption('benchmark_row_target_column');
+    await page.locator('#ruleset-confirmed').check();
+    await confirm.click();
+    await expect(page.getByRole('dialog').getByRole('alert')).toContainText('儲存暫時失敗');
+    await expect(page.locator('#ruleset-confirm-from')).toHaveValue('2026-01-01');
+    await expect(page.locator('#ruleset-confirmed')).toBeChecked();
+    expect(attempts).toBe(2);
+  });
+}
+
 test('mobile navigation and layout fit the viewport', async ({ page }) => {
   await page.setViewportSize({width:390,height:844});
   await page.goto('/');
