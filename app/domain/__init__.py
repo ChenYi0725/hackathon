@@ -35,6 +35,11 @@ from app.domain.factor_rules import (
     validate_grade_definitions,
     validate_numeric_ranges,
 )
+from app.domain.ruleset_models import (
+    RulesetScope,
+    StructuredFactorRule,
+    StructuredRuleset,
+)
 
 __all__ = (
     'DistancePreference',
@@ -47,6 +52,9 @@ __all__ = (
     'GradingMethod',
     'ManualEvaluationRequired',
     'NumericRangeRule',
+    'RulesetScope',
+    'StructuredFactorRule',
+    'StructuredRuleset',
     'calculate_adjustment_rate',
     'calculate_average_road_width',
     'calculate_building_density',

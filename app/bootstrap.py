@@ -10,6 +10,8 @@ from app.infrastructure.paddle_pdf import PaddlePdfReader
 from app.infrastructure.persistence import SQLiteReviewRepository
 from app.infrastructure.text_pdf import read_pdf
 from app.infrastructure.form_exports import TemplateFormRenderer
+from app.infrastructure.ruleset_table import PaddleLayoutRulesetExtractor
+from app.application.ruleset_extraction import RulesetExtractionService
 
 
 def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None, agent_model=None):
@@ -22,6 +24,14 @@ def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None, ag
     rag = RagService(repository, pdf_reader, retrieval, answerer or BedrockEvidenceAnswerer(transport), agent=agent)
     return ReviewService(repository, pdf_reader, ai or transport, rag=rag,
                          renderer=TemplateFormRenderer(settings.form_template_dir))
+
+
+def build_ruleset_extraction_service(settings, pdf=None):
+    """Wire PaddleOCR output to deterministic structured-ruleset compilation."""
+    return RulesetExtractionService(
+        pdf or PaddlePdfReader(settings),
+        PaddleLayoutRulesetExtractor(),
+    )
 
 
 def sample_document(settings):
