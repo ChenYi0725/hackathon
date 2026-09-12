@@ -69,6 +69,27 @@ test('browser publishes a new immutable ruleset and adds an independent comparis
  await page.locator('#comparison-name').fill('合成第二比較標的');await page.locator('#comparison-section').fill('S3');
  await page.getByRole('button',{name:'儲存標的並重新審查',exact:true}).click();await expect(page.getByRole('dialog')).not.toBeVisible();
  let p=await(await request.get('/api/cases/'+c.id)).json();expect(p.case.additional_comparisons).toHaveLength(1);expect(p.case.comparable_name).toBe('合成比較標的');expect(p.review.complete).toBe(false);
+ const second=p.case.additional_comparisons[0].id;
+ await page.getByRole('button',{name:'同案文件／Excel 核對',exact:true}).click();
+ await page.locator('#case-document').setInputFiles(path.join(__dirname,'../tests/fixtures/core-workflow.xlsx'));
+ await expect(page.getByRole('dialog')).not.toBeVisible();
+ await page.getByRole('button',{name:'同案文件／Excel 核對',exact:true}).click();
+ await page.locator('#cell-sheet').fill('勘查');await page.locator('#cell-ref').fill('J11');
+ await page.locator('#cell-target').selectOption(`comparisons.${second}.totals.normal_price`);
+ await page.getByRole('button',{name:'採用所選儲存格',exact:true}).click();
+ await expect(page.getByRole('dialog')).not.toBeVisible();
+ p=await(await request.get('/api/cases/'+c.id)).json();
+ expect(p.case.additional_comparisons[0].totals.normal_price).toBe(12);
+ expect(p.case.totals.normal_price).toBe(100);
+ expect(p.case.field_sources[`comparisons.${second}.totals.normal_price`].cell).toBe('J11');
+ await page.getByRole('button',{name:'外部資料與 GIS',exact:true}).click();
+ await page.locator('#external-comparison').selectOption(second);await page.locator('#external-mode').selectOption('mock');
+ await page.getByRole('button',{name:'開始查證',exact:true}).click();
+ await expect(page.getByRole('dialog')).toContainText('合成診斷：timeout');
+ p=await(await request.get('/api/cases/'+c.id)).json();
+ const external=p.review.checks.filter(x=>x.external);expect(external).toHaveLength(1);
+ expect(external[0].comparison_id).toBe(second);expect(external[0].external.comparison_id).toBe(second);
+ await page.getByRole('button',{name:'關閉',exact:true}).click();
  const draft=await(await request.post('/api/rulesets',{data:{...(await(await request.get('/api/rulesets')).json()).find(r=>r.id===c.ruleset_id),version:'browser-new-draft'}})).json();
  p.case.ruleset_id=draft.id;await request.put('/api/cases/'+c.id,{data:p.case});
  await page.reload();await page.getByRole('button',{name:'開啟 '+c.title,exact:true}).click();
@@ -77,4 +98,31 @@ test('browser publishes a new immutable ruleset and adds an independent comparis
  await page.getByRole('button',{name:'發布固定版本',exact:true}).click();await expect(page.getByRole('dialog')).not.toBeVisible();
  p=await(await request.get('/api/cases/'+c.id)).json();expect(p.case.ruleset_id).toBe(draft.id);
  const versions=await(await request.get('/api/rulesets')).json();expect(versions.some(r=>r.approved_from===draft.id&&r.approval_state==='published')).toBe(true);
+});
+
+
+test('AI draft adoption replaces previous cell citations and stays unconfirmed',async({page,request})=>{
+ const fs=require('node:fs');
+ const c=await createCase(request);
+ let p=await(await request.post(`/api/cases/${c.id}/documents?revision=${c.revision}&name=cells.xlsx`,{data:fs.readFileSync(path.join(__dirname,'../tests/fixtures/core-workflow.xlsx'))})).json();
+ const excelId=p.document_id;
+ p=await(await request.post(`/api/cases/${c.id}/apply-cell`,{data:{revision:p.case.revision,document_id:excelId,sheet:'勘查',cell:'J11',target:'factors.width.subject'}})).json();
+ const uploaded=await request.post(`/api/cases/${c.id}/documents?revision=${p.case.revision}&name=synthetic.pdf`,{data:fs.readFileSync(path.join(__dirname,'../tests/fixtures/synthetic-scanned.pdf'))});
+ expect(uploaded.ok()).toBeTruthy();p=await uploaded.json();const pdfId=p.document_id;
+ await page.route('**/api/health',route=>route.fulfill({json:{status:'ok',ai_configured:true,ai_model:'synthetic-test-model',ai_region:'us-west-2'}}));
+ await page.route('**/api/cases/*/ai',route=>route.fulfill({json:{revision:route.request().postDataJSON().revision,message:'合成模型替身，未呼叫 AWS',factors:[{id:'width',subject:'18',comparable:'6',entered_rate:2,confirmed:false,evidence:{document_id:pdfId,page:1,quote:'寬度 18 6',method:'mock-model'}}]}}));
+ await page.goto('/');await page.getByRole('button',{name:'開啟 '+c.title,exact:true}).click();
+ await page.getByRole('button',{name:'資料核對',exact:true}).click();
+ await page.getByRole('button',{name:'AWS AI 抽取',exact:true}).click();await page.locator('#cloud-data-approved').check();
+ await page.getByRole('button',{name:'開始抽取',exact:true}).click();await page.locator('[data-ai-index="0"]').check();
+ await page.getByRole('button',{name:'套用勾選草稿',exact:true}).click();
+ await page.getByRole('button',{name:'儲存並重新審查',exact:true}).click();
+ await expect(page.locator('.dirty-indicator')).toHaveText('所有變更已儲存');
+ p=await(await request.get('/api/cases/'+c.id)).json();
+ expect(p.case.factors.find(f=>f.id==='width').confirmed).toBe(false);
+ for(const side of ['subject','comparable','entered_rate']){
+   expect(p.case.field_sources[`factors.width.${side}`].document_id).toBe(pdfId);
+   expect(p.case.field_sources[`factors.width.${side}`].cell).toBeNull();
+ }
+ expect(p.review.complete).toBe(false);
 });

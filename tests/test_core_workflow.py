@@ -290,3 +290,79 @@ def test_agent_can_plan_and_query_official_adapter_without_changing_case(client)
     assert result.json()['external_observations'][0]['persisted'] is False
     assert service.repository.external_for(cid,p['case']['revision'])==[]
     assert client.get(f'/api/cases/{cid}').json()['case']==p['case']
+
+
+def test_appending_pdf_keeps_legacy_field_sources_on_original_document(client):
+    p=prepared(client)
+    repo=client.app.state.service.repository
+    original=repo.save_document(b'%PDF-original', 'original.pdf', [dict(page=1,text='原文件 寬度 12 / 8')])
+    p['case']['document_id']=original
+    p['case']['factors'][0]['evidence']=dict(page=1,quote='寬度 12 / 8',method='paddleocr-layout')
+    cid=p['case']['id']
+    p=client.put('/api/cases/'+cid,json=p['case']).json()
+    response=client.post(f'/api/cases/{cid}/documents',params=dict(revision=p['case']['revision'],name='new.pdf'),content=b'%PDF-new')
+    assert response.status_code==200,response.text
+    p=response.json()
+    assert p['case']['document_id']!=original
+    check=next(r for r in p['review']['checks'] if r['id']=='width')
+    assert check['input_sources']['subject']['document_id']==original
+    assert check['input_sources']['comparable']['document_id']==original
+    assert client.get('/api/documents/'+original+'/file').content==b'%PDF-original'
+
+
+def test_adopting_one_excel_cell_does_not_claim_it_as_other_fields_source(client):
+    p=prepared(client);cid=p['case']['id']
+    p=client.post(f'/api/cases/{cid}/documents',params=dict(revision=p['case']['revision'],name='cells.xlsx'),content=workbook()).json()
+    docid=p['document_id']
+    for cell,target in [('F12','entered_rate'),('J11','subject')]:
+        p=client.post(f'/api/cases/{cid}/apply-cell',json=dict(revision=p['case']['revision'],document_id=docid,sheet='勘查',cell=cell,target='factors.width.'+target)).json()
+        sources=next(r for r in p['review']['checks'] if r['id']=='width')['input_sources']
+        assert sources['comparable']['document_id'] is None
+    assert sources['subject']['cell']=='J11'
+    assert sources['entered_rate']['cell']=='F12'
+
+
+def test_excel_native_date_can_be_adopted_without_losing_source_value(client):
+    from datetime import datetime
+    p=prepared(client);cid=p['case']['id']
+    book=load_workbook(io.BytesIO(workbook()));book['勘查']['B3']=datetime(2026,9,1)
+    buf=io.BytesIO();book.save(buf)
+    p=client.post(f'/api/cases/{cid}/documents',params=dict(revision=p['case']['revision'],name='date.xlsx'),content=buf.getvalue()).json()
+    docid=p['document_id']
+    p=client.post(f'/api/cases/{cid}/apply-cell',json=dict(revision=p['case']['revision'],document_id=docid,sheet='勘查',cell='B3',target='valuation_date')).json()
+    assert p['case']['valuation_date']=='2026-09-01'
+    assert p['case']['field_sources']['valuation_date']['quote']=='2026-09-01T00:00:00'
+
+
+def test_previous_engine_snapshot_cannot_be_exported(client):
+    from app.domain.workflow import digest
+    p=prepared(client);service=client.app.state.service;cid=p['case']['id']
+    old=service.repository.get_run(cid,p['run']['id'])
+    old['engine_version']='previous-engine'
+    old['id']=digest({k:old[k] for k in ('case_id','case_revision','input_hash','rules_hash','evidence_hash','engine_version')})
+    service.repository.save_run(old)
+    result=client.get(f'/api/cases/{cid}/artifacts/pdf',params=dict(revision=p['case']['revision'],run_id=old['id']))
+    assert result.status_code==409
+
+
+def test_human_decision_retry_with_whitespace_reason_is_idempotent(client):
+    p=prepared(client);cid=p['case']['id']
+    body=dict(revision=p['case']['revision'],run_id=p['run']['id'],check_id='width',decision='accept',reason='  核對原文  ',operation_id='whitespace-retry')
+    first=client.post(f'/api/cases/{cid}/decisions',json=body)
+    second=client.post(f'/api/cases/{cid}/decisions',json=body)
+    assert first.status_code==second.status_code==200
+    assert first.json()==second.json()
+    assert len(client.app.state.service.repository.dispositions(cid))==1
+
+
+def test_summary_pdf_lists_both_independently_mapped_cell_sources(client):
+    p=prepared(client);cid=p['case']['id']
+    p=client.post(f'/api/cases/{cid}/documents',params=dict(revision=p['case']['revision'],name='sources.xlsx'),content=workbook()).json()
+    docid=p['document_id']
+    for cell,side in [('J11','subject'),('F12','comparable')]:
+        p=client.post(f'/api/cases/{cid}/apply-cell',json=dict(revision=p['case']['revision'],document_id=docid,sheet='勘查',cell=cell,target='factors.width.'+side)).json()
+    response=client.get(f'/api/cases/{cid}/artifacts/pdf',params=dict(revision=p['case']['revision'],run_id=p['run']['id']))
+    assert response.status_code==200
+    text=''.join(page.extract_text() for page in PdfReader(io.BytesIO(response.content)).pages)
+    assert 'J11' in text and 'F12' in text
+    assert '比準地條件' in text and '比較標的條件' in text

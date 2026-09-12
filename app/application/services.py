@@ -104,6 +104,11 @@ class ReviewService:
         for factor in case.factors:
             factor.evidence.method = 'paddleocr-layout'
         case.document_id = self.repository.save_document(data, name[:200], pages)
+        for factor in case.factors:
+            factor.evidence.document_id = case.document_id
+        for source in case.field_sources.values():
+            source.document_id = case.document_id
+            source.method = "paddleocr-layout"
         return self.payload(self.repository.save_case(case, '上傳 PDF 與 PaddleOCR 辨識', new=True))
 
     def fix(self, case_id, check_id, revision):
@@ -151,6 +156,8 @@ class ReviewService:
         factors = self.ai.extract(document['pages'], self.repository.get_rules(case.ruleset_id))
         if self.repository.get_case(case_id).revision != revision:
             raise RevisionConflict('抽取期間案件已更新，請重新載入後再試。')
+        for factor in factors:
+            factor.evidence.document_id = case.document_id
         return dict(factors=[f.model_dump() for f in factors], revision=revision,
                     message='Bedrock 草稿尚未套用。引用與欄位值已做原文存在性檢查，兩側對應仍須人工確認。')
 

@@ -70,6 +70,8 @@ def parse_case(pages, title, ruleset):
                 if index==25:vals=vals[-2:]
                 if len(vals)==2:f.subject,f.comparable=vals
             f.evidence=Evidence(page=comparison['page'],quote=line.strip(),method='layout-parser')
+            for side in ('subject','comparable','entered_rate'):
+                case.field_sources['factors.'+f.id+'.'+side] = f.evidence.model_copy(deep=True)
             break
     patterns={'normal_price':rf'土地正常單價\s+({NUM})',
               'adjusted_price':rf'調整至估價基準日單價[^\n]*?\s{{2,}}({NUM})',
@@ -81,18 +83,25 @@ def parse_case(pages, title, ruleset):
               'weight':rf'試算價格[^\n]*?({NUM})%'}
     for name,pattern in patterns.items():
         m=re.search(pattern,text)
-        if m:setattr(case.totals,name,float(m[1].replace(',','')))
+        if m:
+            setattr(case.totals,name,float(m[1].replace(',','')))
+            case.field_sources['totals.'+name] = Evidence(page=comparison['page'],quote=m[0],method='layout-parser')
     detail=next((p for p in pages if '影響地價區域因素分析明細表' in p['text']),None)
     if detail:
-        rows=re.findall(r'([^\n]*?)\s+[1-9]\s+(優|稍優|普通|稍劣|劣|無|有)\s+[1-9]\s+(優|稍優|普通|稍劣|劣|無|有)\s+('+NUM+r')\s*$',detail['text'],re.M)
+        rows=list(re.finditer(r'([^\n]*?)\s+[1-9]\s+(優|稍優|普通|稍劣|劣|無|有)\s+[1-9]\s+(優|稍優|普通|稍劣|劣|無|有)\s+('+NUM+r')\s*$',detail['text'],re.M))
         if len(rows)==28:
-            for factor_id,(quote,a,b,rate) in zip(REGIONAL_IDS,rows):
+            for factor_id,match in zip(REGIONAL_IDS,rows):
+                quote,a,b,rate = match.groups()
                 f = by_id.get(factor_id)
                 if f is None: continue
                 f.subject_grade=a;f.comparable_grade=b;f.entered_rate=float(rate.replace(',',''))
-                f.evidence=Evidence(page=detail['page'],quote=f'{quote.strip()} {a} / {b} / {rate}%',method='layout-parser')
+                f.evidence=Evidence(page=detail['page'],quote=match[0].strip(),method='layout-parser')
+                for side in ('subject_grade','comparable_grade','entered_rate'):
+                    case.field_sources['factors.'+f.id+'.'+side] = f.evidence.model_copy(deep=True)
         m=re.search(r'=\(1\)[^\n]*?\s{2,}('+NUM+r')[%％]',detail['text'])
-        if m:case.totals.regional_detail=float(m[1].replace(',',''))
+        if m:
+            case.totals.regional_detail=float(m[1].replace(',',''))
+            case.field_sources['totals.regional_detail'] = Evidence(page=detail['page'],quote=m[0],method='layout-parser')
     survey=next((p for p in pages if re.search(r'表\s*1\s*地[價价]區段勘查表',p['text'])),None)
     if survey:
         # Only unambiguous single-line measurements are extracted automatically.
@@ -115,8 +124,11 @@ def parse_case(pages, title, ruleset):
             m=re.search(pattern,survey['text']) if pattern else None
             if m:
                 f.subject=m[1]
-                if case.subject_section and case.subject_section==case.comparable_section:f.comparable=m[1]
-                f.evidence.quote+='；表 1：'+m[0];f.evidence.page=survey['page']
+                f.evidence = Evidence(page=survey['page'],quote=m[0],method='layout-parser')
+                case.field_sources['factors.'+f.id+'.subject'] = f.evidence.model_copy(deep=True)
+                if case.subject_section and case.subject_section==case.comparable_section:
+                    f.comparable=m[1]
+                    case.field_sources['factors.'+f.id+'.comparable'] = f.evidence.model_copy(deep=True)
         case.extraction_warnings.append('表 1 跨欄設施與勾選符號保留人工核對；同區段才將已抽取區域條件套用雙方。')
     if not any(f.subject is not None for f in case.factors):
         case.extraction_warnings.append('無法可靠辨識欄列；未以猜測值補齊。')

@@ -8,7 +8,7 @@ import tempfile
 import time
 from app.bootstrap import build_service
 from app.domain.models import Case, Factor
-from app.domain.workflow import calculate
+from app.domain.workflow import calculate, ENGINE_VERSION
 from app.domain.rule_validation import validate_ruleset
 from app.infrastructure.settings import Settings, ROOT
 from app.infrastructure.bedrock_agent import PROMPT_VERSION
@@ -105,7 +105,7 @@ def run(settings, selected=None, live=False):
                 return response
         native.transport.client=Metered()
     report=dict(mode='real-bedrock' if live else 'fixture-validation',model=settings.model_id,region=settings.region,
-                fixture_version='core-1',tool_profile='workflow-six-tools',prompt_version=PROMPT_VERSION,suite_sha256=hashlib.sha256((FIXTURES/'cases.json').read_bytes()).hexdigest(),
+                engine_version=ENGINE_VERSION,fixture_version='core-1',tool_profile='workflow-six-tools',prompt_version=PROMPT_VERSION,suite_sha256=hashlib.sha256((FIXTURES/'cases.json').read_bytes()).hexdigest(),
                 started_at=datetime.now(timezone.utc).isoformat(),data='synthetic PDFs and synthetic single-factor rules only',results=[])
     for spec in specifications():
         if selected and spec['id'] not in selected:continue

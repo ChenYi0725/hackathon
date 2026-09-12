@@ -4,7 +4,7 @@ import uuid
 import re
 from app.application.ports import RevisionConflict
 from app.domain.models import Evidence
-from app.domain.workflow import calculate, digest
+from app.domain.workflow import calculate, digest, factor_source, ENGINE_VERSION
 from app.domain.confirmation import invalidate_confirmations
 
 
@@ -28,7 +28,7 @@ class WorkflowService:
         rules = self.repo.get_rules(case.ruleset_id)
         evidence = self.repo.external_for(cid, revision)
         identity = dict(case_id=cid, case_revision=revision, input_hash=digest(case.model_dump()),
-                        rules_hash=digest(rules), evidence_hash=digest(evidence), engine_version='core-1')
+                        rules_hash=digest(rules), evidence_hash=digest(evidence), engine_version=ENGINE_VERSION)
         run = dict(identity, id=digest(identity), generated_at=stamp(),
                    case=case.model_dump(), rules=rules, evidence=evidence,
                    review=calculate(case, rules, evidence))
@@ -40,13 +40,14 @@ class WorkflowService:
     def validated_run(self, cid, revision, run_id):
         case = self.current(cid, revision)
         run = self.repo.get_run(cid, run_id)
-        if (run['case_revision'] != revision or run['input_hash'] != digest(case.model_dump()) or
+        if (run.get('engine_version') != ENGINE_VERSION or run['case_revision'] != revision or run['input_hash'] != digest(case.model_dump()) or
             run['rules_hash'] != digest(self.repo.get_rules(case.ruleset_id)) or
             run['evidence_hash'] != digest(self.repo.external_for(cid, revision))):
             raise RevisionConflict('檢核結果已過期，請重新審查。')
         return run
 
     def disposition(self, cid, revision, run_id, check_id, decision, reason, operation_id):
+        reason = reason.strip()
         # An exact retry is idempotent, including after a later edit.
         for old in self.repo.dispositions(cid):
             if old['id'] == operation_id:
@@ -70,6 +71,14 @@ class WorkflowService:
         candidate = case.model_copy(deep=True)
         candidate.document_ids = list(dict.fromkeys([*case.document_ids, *([case.document_id] if case.document_id else []), docid]))
         if parsed['kind'] == 'pdf':
+            # Bind legacy row citations before changing the selected PDF.
+            for prefix, factors in [('', candidate.factors), *[('comparisons.'+c.id+'.', c.factors) for c in candidate.additional_comparisons]]:
+                for factor in factors:
+                    for side in ('subject','comparable','entered_rate','subject_grade','comparable_grade'):
+                        key = prefix + 'factors.' + factor.id + '.' + side
+                        candidate.field_sources[key] = factor_source(case, factor, side, prefix)
+                    if not factor.evidence.document_id and factor.evidence.method != 'manual' and not factor.evidence.cell:
+                        factor.evidence.document_id = case.document_id
             candidate.document_id = docid
         candidate.extraction_warnings = list(dict.fromkeys([*case.extraction_warnings, *parsed['warnings']]))[:100]
         candidate = self.repo.save_case(invalidate_confirmations(case, candidate), '新增文件版本：' + name)
@@ -110,11 +119,17 @@ class WorkflowService:
                 raise ValueError('未知因素。請先在資料核對中建立該因素。')
             if parts[2] != 'entered_rate' and value is not None:
                 value = str(value)
+            prefix = target.rsplit('factors.', 1)[0]
+            for side in ('subject','comparable','entered_rate','subject_grade','comparable_grade'):
+                candidate.field_sources.setdefault(prefix + 'factors.' + factor.id + '.' + side,
+                                                   factor_source(case, factor, side, prefix))
             setattr(factor, parts[2], value)
             factor.evidence = source
         elif len(parts) == 2 and parts[0] == 'totals' and parts[1] in type(target_object.totals).model_fields:
             setattr(target_object.totals, parts[1], value)
         elif target in ('valuation_date', 'subject_section', 'comparable_section', 'subject_name', 'comparable_name'):
+            if target == 'valuation_date' and item.get('value_type') == 'date' and value:
+                value = datetime.fromisoformat(value).date().isoformat()
             setattr(candidate, target, '' if value is None else str(value))
         else:
             raise ValueError('不支援的目標欄位。')

@@ -19,6 +19,23 @@
 | 匯出 | `infrastructure/reports.py`、`interfaces/http.py` | 新增真正的 PDF、Excel 整理書表及 ZIP 快照包。匯出前後驗證案件／規則／證據與人工處置；舊連結 409、其他案件 run ID 404 |
 | 基準管理 | `services.py:publish_ruleset`、`persistence.py:add_rules` | 匯入固定 draft；核對原文、矩陣、期間與原因後產生新 ID。發布不覆寫原版，不自動切換案件；相同發布重試回傳同一版本 |
 
+## 第二輪實作修正（core-2）
+
+本地工作仍在 `codex/core-workflow`；尚未合併至 `main`。這輪在既有切片上追加以下修正，沒有重寫服務：
+
+| 已重現問題 | 程式修正與驗收 |
+| --- | --- |
+| 追加 PDF 後舊列引用可能跟著切換文件 | 追加前固定既有文件 ID；新 OCR／AI 草稿也明確綁定文件 |
+| 採用一個 Excel 儲存格卻成為其他欄位的來源 | 逐欄保存引用；未指定來源保持人工輸入，不推定同列共用儲存格 |
+| 區域條件、等級與修正率來自不同 PDF 頁卻共用引用 | parser 分別保存實際頁碼及原文；介面與 PDF 分別列出來源 |
+| AI 草稿替換值後保留舊 Excel 引用 | 套用選取欄位時同步替換該欄引用，仍待人工確認 |
+| Excel 原生日期變成含時間字串 | 保留來源原值，採用估價日時轉為日期；沒有範圍資訊的 XLSX 明確拒絕並提示重存 |
+| 引擎更新後舊快照仍可下載 | 明確 `ENGINE_VERSION=core-2`，舊引擎快照拒絕匯出／處置；歷史資料保留，重新檢核產生新快照 |
+| 處置理由含首尾空白導致同一操作重試衝突 | 比對與保存使用相同正規化理由，相同操作只保留一筆 |
+| 追加標的的總計映射／外部查證缺少操作入口 | 前端補上各標的總計欄位、外部查證標的選擇，瀏覽器驗證不串到第一筆 |
+
+最初 5 個新增重現測試皆失敗，修正後通過；另補 PDF 跨頁與摘要多來源測試。沒有改寫既有審查數學公式或規則版本。
+
 ## 版本與非同步保護
 
 - `review_runs` 保存完整案件、規則、外部證據、結果與雜湊。ID 由輸入／規則／證據／引擎版本決定；同輸入重跑不重複附加結果。
@@ -48,10 +65,10 @@ python3.12 -m venv .venv
 # macOS 使用既有 Arial Unicode；Linux 請指定有嵌入授權的繁中字型：
 # export PDF_FONT_PATH=/path/to/traditional-chinese.ttf
 .venv/bin/python -m scripts.demo_core_workflow --data-dir .analysis/core-demo
-APP_DATA_DIR=.analysis/core-demo SEED_EXAMPLES=false BEDROCK_ENABLED=false PORT=8027 .venv/bin/python run.py
+APP_DATA_DIR=.analysis/core-demo SEED_EXAMPLES=false BEDROCK_ENABLED=false PORT=8037 .venv/bin/python run.py
 ```
 
-開啟 `http://127.0.0.1:8027`。Demo 資料庫已存在時命令拒絕覆寫；重跑請換一個資料目錄。
+開啟 `http://127.0.0.1:8037`。Demo 資料庫已存在時命令拒絕覆寫；重跑請換一個資料目錄。
 
 1. 開啟「合成 Demo · 正常」；已透過 Excel 儲存格映射、人工確認與固定合成規則完成檢核。
 2. 點「同案文件／Excel 核對」，查看三種工作表的儲存格、公式與來源，或追加 `tests/fixtures/core-workflow.xlsx`。
@@ -69,13 +86,15 @@ APP_DATA_DIR=.analysis/core-demo SEED_EXAMPLES=false BEDROCK_ENABLED=false PORT=
 
 ```bash
 .venv/bin/python -m pytest -q
-PLAYWRIGHT_CHANNEL=chrome TEST_PORT=8027 npm run test:e2e
+PLAYWRIGHT_CHANNEL=chrome TEST_PORT=8037 npm run test:e2e
 RUN_OCR_TESTS=1 .venv/bin/python -m pytest tests/test_paddle.py -q
 ```
 
 `tests/test_core_workflow.py` 包含正常、錯誤、缺資料、API 失敗、真實執行緒競爭、證據競爭、版本切換、三標的不串值、跨案匯出拒絕、長文字 PDF 及 Agent 新工具。`e2e/z-core-workflow.spec.js` 實際操作新前端；既有 E2E 保留真實 CPU OCR 及合成模型回覆。
 
-本次本地驗收（2026-09-12）：Python **1026 passed、3 skipped**；再指定本地競賽附件與啟用真實 OCR，補跑這 3 項皆通過（共 1029 項取得通過證據）。Chrome E2E **12/12 通過**，包括真實 CPU PaddleOCR、既有分表下載及新增工作流程。Agent 驗收 fixture **6/6 合法、AWS 呼叫 0 次**，這是資料與契約驗證，並非模型準確率。
+第二輪本地驗收（2026-09-12）：指定本地附件並啟用真實 CPU OCR，Python **1036 passed、0 skipped**（2 個既有依賴棄用警告）。Chrome 完整回歸先取得 12 通過、1 失敗；失敗是新增測試未等待儲存完成就讀取案件，補上實際保存完成的等待後，更新後核心 E2E **3/3 通過**，其餘既有 10 項已有通過證據。沒有把測試替身當作 Bedrock live 驗收。
+
+重跑完整 Python 驗證須設定 `REFERENCE_DATA_DIR` 指向本地競賽附件，並設定 `RUN_OCR_TESTS=1`。瀏覽器可用 `TEST_PORT` 指定未使用埠；這輪使用 8037，未停止原有服務。
 
 | 合成 Demo | 實際結果 |
 | --- | --- |

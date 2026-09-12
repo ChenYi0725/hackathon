@@ -143,3 +143,11 @@ GraphRAG 的選型、住宅公式來源核對及正式 PDF 模板實作仍依 [T
 Application 擁有 AgentModel.next_turn(context, history, tools) → AgentTurn；ToolCall、ToolResult 與四個工具的參數 schema 在 agent_contracts.py。AgentTurn.continuation 是 adapter 擁有的不透明往返信息，不由 application 解讀 AWS 欄位；SDK 型別不進入 domain。
 
 agentic_rag.py 執行工具白名單與有界迴圈，使用既有 EvidenceRetriever、ReviewRepository 與 domain.review。新增唯讀 /api/cases/{id}/agent-evidence；不改 v1 Case、保存、確認或資料庫 schema。API 與預算見 [Agentic RAG 文件](agentic-rag.md)。原本純本機檢索與單次生成 API 保持相容。
+
+
+### core-2 來源及快照相容補充
+
+- `field_sources` 的逐欄引用優先；單一 `Factor.evidence` 為 Excel cell 時，不可作為同列其他欄位的推定來源。PDF 列來源與逐欄來源保留相容，但追加文件前會固定舊文件 ID。
+- OCR／AI 草稿來源明確綁定文件；採用 AI 草稿同步替換 subject、comparable、entered_rate 的來源，不變更其他未採用欄位。
+- `input_sources` 額外包含 subject_grade、comparable_grade。既有三個鍵保留，不修改數值 JSON 型別或資料庫 schema。
+- `review_runs.engine_version` 使用 `core-2`；舊引擎快照仍可保存歷史，不能作為目前版本匯出或新增人工處置的依據。重新檢核保留案件 revision，但產生不同 run ID。

@@ -5,6 +5,22 @@ from collections import Counter
 from decimal import Decimal, ROUND_HALF_UP
 from app.domain.applicability import valuation_day
 from app.domain.engine import review
+from app.domain.models import Evidence
+
+ENGINE_VERSION = "core-2"
+
+
+def factor_source(case, factor, side, prefix=""):
+    source = case.field_sources.get(prefix + "factors." + factor.id + "." + side)
+    if source is None:
+        source = factor.evidence
+        # A single Excel cell is not evidence for every value in the factor row.
+        if source.cell or source.sheet:
+            return Evidence(page=source.page)
+    source = source.model_copy(deep=True)
+    if not source.document_id and source.method != "manual" and not source.cell:
+        source.document_id = case.document_id
+    return source
 
 
 def digest(value):
@@ -51,8 +67,8 @@ def calculate_single(case, rules, evidence):
             row['inputs'] = dict(subject=factor.subject, comparable=factor.comparable,
                                  entered_rate=factor.entered_rate)
             row['evidence'] = factor.evidence.model_dump()
-            row['input_sources'] = {side: case.field_sources.get('factors.' + factor.id + '.' + side, factor.evidence).model_dump()
-                                    for side in ('subject', 'comparable', 'entered_rate')}
+            row['input_sources'] = {side: factor_source(case, factor, side).model_dump()
+                                    for side in ('subject', 'comparable', 'entered_rate', 'subject_grade', 'comparable_grade')}
             row['formula'] = 'matrix[classify(subject)][classify(comparable)]'
             row['unit'] = 'percentage_point'
         else:

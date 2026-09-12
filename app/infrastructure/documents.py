@@ -38,6 +38,8 @@ class CaseDocumentReader:
             if len(book.worksheets) > 20:
                 raise ValueError('最多接受 20 個工作表。')
             for index, sheet in enumerate(book.worksheets, 1):
+                if sheet.max_row is None or sheet.max_column is None:
+                    raise ValueError('Excel 缺少工作表範圍資訊，請以試算表軟體重新儲存為 XLSX。')
                 if sheet.max_row > 2000 or sheet.max_column > 100:
                     raise ValueError('工作表範圍超過 2000 列／100 欄。')
                 if sheet.sheet_state != 'visible':
@@ -57,11 +59,12 @@ class CaseDocumentReader:
                             continue
                         formula = str(cell.value) if cell.data_type == 'f' else None
                         value = cached[cell.coordinate].value if formula else cell.value
+                        value_type = 'date' if isinstance(value, (date, datetime)) else 'scalar'
                         if isinstance(value, (date, datetime)):
                             value = value.isoformat()
                         if isinstance(value, (int, float)) and not isinstance(value, bool) and '%' in cell.number_format:
                             value = str(Decimal(str(value)) * 100)
-                        cells[cell.coordinate] = dict(value=value, formula=formula, number_format=cell.number_format,
+                        cells[cell.coordinate] = dict(value=value, value_type=value_type, formula=formula, number_format=cell.number_format,
                             presence='blank' if value in (None, '') else 'none' if value == '無' else
                             'not_applicable' if value == '不適用' else 'value')
                 text = '\n'.join(f'{k}: {v["value"] if v["value"] is not None else "[空白]"}' +

@@ -285,6 +285,16 @@ class TemplateFormRenderer:
             evidence = r.get('evidence', {})
             locator = (f"文件 {evidence['document_id']} / {evidence.get('sheet') or ''} {evidence.get('cell') or ''} / p.{evidence.get('page')}"
                        if evidence.get('document_id') else '人工輸入／程式重算，見案件快照')
+            located = {}
+            labels = dict(subject='比準地條件', comparable='比較標的條件', entered_rate='修正率',
+                          subject_grade='比準地等級', comparable_grade='比較標的等級')
+            for side, source in r.get('input_sources', {}).items():
+                if source.get('document_id'):
+                    key = (source['document_id'], source.get('sheet') or '', source.get('cell') or '', source.get('page'))
+                    located.setdefault(key, []).append(labels.get(side, side))
+            if located:
+                locator = '\n'.join('/'.join(sides) + f'：文件 {docid} / {sheet} {cell} / p.{page}'
+                                    for (docid, sheet, cell, page), sides in located.items())
             rows.append([p(v) for v in [r['title'], STATUS[r['status']], r.get('actual'), r.get('expected'),
                 f'{r["message"]}\n{locator}\n基準 p.{text(r.get("rule_page"))} / {r.get("formula_id", "程式規則")}']])
         table = LongTable(rows, colWidths=[132, 58, 65, 65, 465], repeatRows=1, splitInRow=1)

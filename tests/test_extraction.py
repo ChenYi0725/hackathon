@@ -53,3 +53,18 @@ def test_multiple_named_comparables_are_detected_even_when_rates_are_blank():
     c = parse_case([{'page': 1, 'text': '表4比較法調查估價表\n0基本資料  比準地甲  比較標的一  比較標的二  比較標的三'}], '多標的')
     assert any('多筆' in warning for warning in c.extraction_warnings)
     assert all(f.subject is None for f in c.factors)
+
+
+def test_regional_values_and_rates_keep_their_respective_pdf_pages():
+    from app.domain.rules import default_rules
+    from app.application.drafts import parse_case as parse
+    detail='影響地價區域因素分析明細表\n'+'\n'.join(f'因素{i} 1 優 1 優 0' for i in range(28))
+    pages=[dict(page=1,text='表1 地價區段勘查表\n主要道路 寬度：18'),dict(page=2,text=detail),
+           dict(page=3,text='表4 比較法調查估價表\n地價區段 P002-00 P002-00')]
+    case=parse(pages,'跨頁合成案件',default_rules())
+    sources=case.field_sources
+    assert sources['factors.r_road_width.subject'].page==1
+    assert sources['factors.r_road_width.comparable'].page==1
+    assert sources['factors.r_road_width.subject_grade'].page==2
+    assert sources['factors.r_road_width.entered_rate'].page==2
+    assert sources['factors.r_road_width.entered_rate'].quote in detail
