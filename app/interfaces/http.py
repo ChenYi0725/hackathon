@@ -13,6 +13,7 @@ from app.domain.models import Case
 from app.infrastructure.persistence import now
 from app.infrastructure.settings import ROOT, Settings
 from app.interfaces.exports import export_case
+from app.application.export_contracts import ExportUnavailable
 
 
 class RevisionRequest(BaseModel):
@@ -184,7 +185,17 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
         return service().create_ruleset(body)
 
     @app.get('/api/cases/{cid}/export/{kind}')
-    def export(cid: str, kind: str):
+    def export(cid: str, kind: str, revision: int | None = None):
+        if kind in {'report-pdf', 'table3-xlsx', 'table3-pdf', 'table4-xlsx', 'table4-pdf', 'table5-xlsx', 'table5-pdf'}:
+            if revision is None:
+                raise HTTPException(422, '請提供案件 revision，確保匯出版本一致。')
+            try:
+                artifact = service().export_document(cid, kind, revision, now())
+            except ExportUnavailable as error:
+                raise HTTPException(503, str(error)) from error
+            return Response(artifact.data, media_type=artifact.media_type, headers={
+                'Content-Disposition': "attachment; filename*=UTF-8''" + quote(artifact.filename),
+                'X-Case-Revision': str(artifact.revision), 'Cache-Control': 'no-store'})
         result = service().get_case(cid)
         case = Case.model_validate(result['case'])
         return export_case(case, result['review'], service().repository.get_rules(case.ruleset_id), kind, now())

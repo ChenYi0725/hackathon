@@ -49,8 +49,8 @@
 | DDD-02 | P0 | 可追溯的確定性計算 | Domain | DDD-01 | 待認領 | — |
 | DDD-03 | P0 | 舊案件相容與資料遷移 | Infrastructure | DDD-01 | 待認領 | — |
 | DDD-04 | P0 | ports 與案件用例整合 | Application | DDD-02、DDD-03 | 待認領 | — |
-| DDD-05 | P0 | PDF 報告與原書表產製 | Infrastructure | DDD-04 | 待認領 | — |
-| DDD-06 | P0 | 多標的核對與 PDF 下載介面 | Interfaces／UI | DDD-04、DDD-05 | 待認領 | — |
+| DDD-05 | P0 | PDF 報告與原書表產製 | Infrastructure | DDD-04 | 待審查（v1 分表匯出切片） | Codex／[PR #9](https://github.com/ChenYi0725/hackathon/pull/9)；[範圍與驗收](form-exports.md) |
+| DDD-06 | P0 | 多標的核對與 PDF 下載介面 | Interfaces／UI | DDD-04、DDD-05 | 待審查（v1 分表下載切片） | Codex／[PR #9](https://github.com/ChenYi0725/hackathon/pull/9)；多標的輸入尚未整合 |
 | DDD-07 | P1 | 具版本篩選及引用的依據檢索 | Infrastructure | DDD-04（v2）；本次先接 v1 | 待審查 | Codex／[PR #6](https://github.com/ChenYi0725/hackathon/pull/6)（基礎 RAG：已合併 PR #5） |
 | DDD-08 | P0 | 題目完整流程與回歸驗收 | Integration | DDD-05、DDD-06 | 進行中（Agent 切片待審查） | Codex／[PR #8](https://github.com/ChenYi0725/hackathon/pull/8) |
 | DDD-09 | P2 | GraphRAG 對照評估 | Infrastructure＋Integration | DDD-07、DDD-08 | 待認領 | — |

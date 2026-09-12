@@ -9,6 +9,7 @@ from app.infrastructure.bedrock import BedrockFieldExtractor
 from app.infrastructure.paddle_pdf import PaddlePdfReader
 from app.infrastructure.persistence import SQLiteReviewRepository
 from app.infrastructure.text_pdf import read_pdf
+from app.infrastructure.form_exports import TemplateFormRenderer
 
 
 def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None, agent_model=None):
@@ -19,7 +20,8 @@ def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None, ag
     retrieval = retriever or LocalEvidenceRetriever(repository)
     agent = AgenticRagService(repository, retrieval, agent_model or BedrockAgentModel(transport))
     rag = RagService(repository, pdf_reader, retrieval, answerer or BedrockEvidenceAnswerer(transport), agent=agent)
-    return ReviewService(repository, pdf_reader, ai or transport, rag=rag)
+    return ReviewService(repository, pdf_reader, ai or transport, rag=rag,
+                         renderer=TemplateFormRenderer(settings.form_template_dir))
 
 
 def sample_document(settings):

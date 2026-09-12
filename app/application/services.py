@@ -7,12 +7,30 @@ from app.domain.confirmation import invalidate_confirmations
 from app.domain.models import Case
 from app.domain.rule_validation import validate_ruleset
 from app.domain.sample import sample_case
+from app.application.export_contracts import ExportUnavailable, FormRenderer
 
 
 class ReviewService:
-    def __init__(self, repository: ReviewRepository, pdf: PdfReader, ai: FieldExtractor, rag: RagService | None = None):
+    def __init__(self, repository: ReviewRepository, pdf: PdfReader, ai: FieldExtractor, rag: RagService | None = None, renderer: FormRenderer | None = None):
         self.repository, self.pdf, self.ai = repository, pdf, ai
         self.rag = rag
+        self.renderer = renderer
+
+    def export_document(self, case_id, kind, revision, generated_at):
+        case = self.repository.get_case(case_id)
+        if case.revision != revision:
+            raise RevisionConflict('案件已更新，請重新載入後再匯出。')
+        if self.renderer is None:
+            raise ExportUnavailable('書表輸出尚未設定。')
+        rules = self.repository.get_rules(case.ruleset_id)
+        result = review(case, rules)
+        try:
+            artifact = self.renderer.render(case.model_copy(deep=True), result, rules, kind, generated_at)
+        except (ImportError, OSError) as error:
+            raise ExportUnavailable('書表產製失敗；請檢查輸出套件、模板與中文字型設定。') from error
+        if self.repository.get_case(case_id).revision != revision:
+            raise RevisionConflict('產製期間案件已更新，請重新匯出。')
+        return artifact
 
     def seed_examples(self, document=None):
         if self.repository.list_cases():
