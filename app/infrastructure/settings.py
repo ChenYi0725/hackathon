@@ -1,5 +1,6 @@
 """Deployment configuration. Credentials stay in the AWS SDK credential chain."""
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -20,6 +21,7 @@ class Settings:
     ocr_timeout: int = field(default_factory=lambda: int(os.getenv('OCR_TIMEOUT_SECONDS', '300')))
     ocr_dpi: int = field(default_factory=lambda: int(os.getenv('OCR_DPI', '180')))
     ocr_threads: int = field(default_factory=lambda: int(os.getenv('OCR_CPU_THREADS', '2')))
+    ocr_device: str = field(default_factory=lambda: os.getenv('OCR_DEVICE', 'cpu'))
     detection_model: str = field(default_factory=lambda: os.getenv('OCR_DETECTION_MODEL', 'PP-OCRv5_mobile_det'))
     recognition_model: str = field(default_factory=lambda: os.getenv('OCR_RECOGNITION_MODEL', 'PP-OCRv5_server_rec'))
 
@@ -35,6 +37,8 @@ class Settings:
             raise ValueError('OCR_DPI 須為 72–300，OCR_CPU_THREADS 須為 1–8。')
         if not 10 <= self.ocr_timeout <= 1800:
             raise ValueError('OCR_TIMEOUT_SECONDS 須為 10–1800 秒。')
+        if not re.fullmatch(r'cpu|gpu:(0|[1-9][0-9]*)', self.ocr_device):
+            raise ValueError('OCR_DEVICE 須為 cpu 或單一 GPU，例如 gpu:0。')
 
     def reference(self, kind: str) -> Path | None:
         paths = {

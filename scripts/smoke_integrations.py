@@ -1,4 +1,4 @@
-"""Exercise real PaddleOCR and, optionally, Bedrock using only synthetic data."""
+"""Exercise real PaddleOCR on OCR_DEVICE and, optionally, Bedrock using synthetic data."""
 import argparse
 import json
 import tempfile
@@ -27,7 +27,8 @@ def main():
             case = response.json()['case']
             pages = client.get('/api/documents/' + case['document_id']).json()['pages']
             assert pages[0]['method'] == 'paddleocr' and '寬度' in pages[0]['text']
-            report = {'ocr': {'provider': 'paddleocr', 'pages': len(pages), 'line_count': sum(len(p['lines']) for p in pages),
+            assert all(p['device'] == settings.ocr_device for p in pages)
+            report = {'ocr': {'provider': 'paddleocr', 'device': settings.ocr_device, 'pages': len(pages), 'line_count': sum(len(p['lines']) for p in pages),
                               'elapsed_seconds': round(time.monotonic() - started, 2)},
                       'data': 'synthetic fixture only; no source cases sent to AWS'}
             if args.bedrock:
