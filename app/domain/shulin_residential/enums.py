@@ -11,11 +11,9 @@ from enum import Enum
 class GradeLabel(str, Enum):
     """優劣等級標籤，由最優排到最劣。
 
-    Covers every label the handbook's grade schemes use, up to the 9-grade
-    scheme. Shulin ordinary-residential只用到 2／3／5／7 級，超極優 and 超極劣
-    exist so that `GRADE_SCHEMES[9]` is complete for other schedules.
+    Covers the 2／3／5／7-grade schemes used by this Shulin ordinary-residential
+    ruleset. Labels belonging only to other schedules are deliberately omitted.
     """
-    SUPREMELY_EXCELLENT = '超極優'
     EXTREMELY_EXCELLENT = '極優'
     EXCELLENT = '優'
     SLIGHTLY_BETTER = '稍優'
@@ -23,7 +21,6 @@ class GradeLabel(str, Enum):
     SLIGHTLY_WORSE = '稍劣'
     POOR = '劣'
     EXTREMELY_POOR = '極劣'
-    SUPREMELY_POOR = '超極劣'
 
 
 class LandUseCategory(str, Enum):
@@ -90,7 +87,7 @@ class TerrainLevel(str, Enum):
     EXTREMELY_FLAT_AND_FIRM = '極平坦堅硬'
     FLAT = '平坦地'
     GENTLE_SLOPE = '緩傾斜地'
-    LOWLAND_OR_WETLAND = '低地、溼地'
+    LOWLAND_OR_WETLAND = '低地、濕地'
     ISOLATED_AND_POOR = '地勢孤劣地'
 
 

@@ -164,12 +164,15 @@ def test_mixed_grade_scheme_sizes_are_rejected():
 
 
 @pytest.mark.parametrize('matrix', [
+    None,
+    5,
     (),                                             # no rows
     ((0.0, 1.0), (-1.0, 0.0)),                      # 2x2 against a 5-grade pair
     tuple([(0.0,) * 5] * 4),                        # too few rows
     tuple([(0.0,) * 5] * 6),                        # too many rows
     ((0.0,) * 5, (0.0,) * 4, (0.0,) * 5, (0.0,) * 5, (0.0,) * 5),   # ragged
     ('abcde', 'abcde', 'abcde', 'abcde', 'abcde'),  # rows must not be strings
+    (0, 0, 0, 0, 0),                                # rows must be sequences
     (((0.0,) * 5),) * 5 + ((0.0,) * 5,),            # 6 rows
 ])
 def test_matrix_dimension_validation(matrix):
@@ -263,19 +266,3 @@ def test_matrix_accepts_decimal_int_float_and_numeric_string_cells():
         rate = calculate_adjustment_rate(GradeResult.of(1, 5), GradeResult.of(5, 5), matrix)
         assert rate == Decimal('20')
         assert isinstance(rate, Decimal)
-
-
-def test_nine_grade_scheme_works_with_a_caller_supplied_matrix():
-    # No Shulin row uses 9 grades; the generic lookup must still handle one.
-    step = Decimal('2.5')
-    matrix = tuple(tuple(step * (j - i) for j in range(9)) for i in range(9))
-    best, worst = GradeResult.of(1, 9), GradeResult.of(9, 9)
-    assert calculate_adjustment_rate(best, worst, matrix) == Decimal('20')
-    assert calculate_adjustment_rate(worst, best, matrix) == Decimal('-20')
-    assert calculate_adjustment_rate(best, best, matrix) == 0
-    assert calculate_adjustment_rate(GradeResult.of(4, 9), GradeResult.of(6, 9), matrix) == Decimal('5')
-
-
-def test_nine_grade_pair_rejects_a_seven_grade_matrix():
-    with pytest.raises(ValueError):
-        calculate_adjustment_rate(GradeResult.of(1, 9), GradeResult.of(9, 9), M.OTHER_FACTOR_MATRIX)

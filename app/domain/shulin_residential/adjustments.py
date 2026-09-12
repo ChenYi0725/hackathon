@@ -10,11 +10,13 @@ from decimal import Decimal
 from app.domain.shulin_residential.models import GradeResult
 from app.domain.shulin_residential.validation import require_decimal
 
+MatrixCell = Decimal | float | int | str
+
 
 def calculate_adjustment_rate(
     target_grade: GradeResult,
     benchmark_grade: GradeResult,
-    matrix: Sequence[Sequence[Decimal]],
+    matrix: Sequence[Sequence[MatrixCell]],
 ) -> Decimal:
     """Look up the price-adjustment rate for a target/benchmark grade pair.
 
@@ -46,12 +48,14 @@ def calculate_adjustment_rate(
         raise ValueError(
             f'目標區段為 {target_grade.count} 級制、基準區段為 {benchmark_grade.count} 級制，無法比較。')
     count = target_grade.count
+    if isinstance(matrix, (str, bytes)) or not isinstance(matrix, Sequence):
+        raise ValueError('修正率矩陣必須為二維序列。')
     rows = list(matrix)
     if len(rows) != count:
         raise ValueError(f'修正率矩陣需有 {count} 列，實際為 {len(rows)} 列。')
     cells: list[list[Decimal]] = []
     for i, row in enumerate(rows):
-        if isinstance(row, (str, bytes)):
+        if isinstance(row, (str, bytes)) or not isinstance(row, Sequence):
             raise ValueError(f'修正率矩陣第 {i + 1} 列格式錯誤。')
         values = list(row)
         if len(values) != count:

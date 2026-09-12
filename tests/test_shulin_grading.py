@@ -94,32 +94,22 @@ def _table(cases, grader, name):
 
 XE = GradeLabel.EXTREMELY_EXCELLENT
 XP = GradeLabel.EXTREMELY_POOR
-SE = GradeLabel.SUPREMELY_EXCELLENT
-SP = GradeLabel.SUPREMELY_POOR
-
-
 @pytest.mark.parametrize(('index', 'count', 'label'), [
     (1, 2, E), (2, 2, P),
     (1, 3, E), (2, 3, N), (3, 3, P),
     (1, 5, E), (2, 5, SB), (3, 5, N), (4, 5, SW), (5, 5, P),
     (1, 7, XE), (2, 7, E), (3, 7, SB), (4, 7, N), (5, 7, SW), (6, 7, P), (7, 7, XP),
-    (1, 9, SE), (2, 9, XE), (3, 9, E), (4, 9, SB), (5, 9, N),
-    (6, 9, SW), (7, 9, P), (8, 9, XP), (9, 9, SP),
 ])
 def test_grade_schemes(index, count, label):
     assert GradeResult.of(index, count) == GradeResult(index=index, count=count, label=label)
 
 
 def test_supported_scheme_sizes():
-    assert sorted(GRADE_SCHEMES) == [2, 3, 5, 7, 9]
+    assert sorted(GRADE_SCHEMES) == [2, 3, 5, 7]
     assert all(len(labels) == size for size, labels in GRADE_SCHEMES.items())
 
 
-def test_nine_grade_scheme_labels_are_in_order():
-    assert GRADE_SCHEMES[9] == (SE, XE, E, SB, N, SW, P, XP, SP)
-
-
-@pytest.mark.parametrize('count', [2, 3, 5, 7, 9])
+@pytest.mark.parametrize('count', [2, 3, 5, 7])
 def test_every_scheme_has_unique_labels_best_first(count):
     labels = GRADE_SCHEMES[count]
     assert len(set(labels)) == count
@@ -128,7 +118,7 @@ def test_every_scheme_has_unique_labels_best_first(count):
 
 
 @pytest.mark.parametrize(('index', 'count'), [
-    (0, 5), (6, 5), (-1, 5), (1, 4), (1, 6), (1, 8), (1, 10), (1, 0), (10, 9),
+    (0, 5), (6, 5), (-1, 5), (1, 4), (1, 6), (1, 8), (1, 9), (1, 10), (1, 0),
     (True, 5), (1.0, 5), ('1', 5),
 ])
 def test_grade_result_rejects_out_of_range(index, count):
@@ -448,6 +438,10 @@ def test_categorical_grades(grader, level, index, label):
     assert (result.index, result.count, result.label) == (index, 5, label)
 
 
+def test_terrain_accepts_requested_wetland_spelling():
+    assert grade_terrain('低地、濕地').label is SW
+
+
 CATEGORICAL_GRADERS = (
     (grade_sunlight, SunlightLevel),
     (grade_landscape, LandscapeLevel),
@@ -597,6 +591,8 @@ def test_ungraded_survey_fields_are_documented_and_have_no_grader():
                  'grade_land_use_status', 'grade_department_store', 'grade_financial_institution'):
         assert name not in exported
         assert not hasattr(pkg, name)
+    assert not hasattr(pkg, 'grade_positive_facility_distance')
+    assert not hasattr(pkg, 'grade_negative_facility_distance')
 
 
 def test_building_coverage_and_floor_area_ratio_are_graded_but_never_derived():

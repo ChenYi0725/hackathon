@@ -28,8 +28,7 @@ from the urban plan or the non-urban land-use control regulations. 表3 fields t
 Shulin ordinary-residential schedule does not list as evaluation items are
 recorded but not graded, see `grading.UNGRADED_SURVEY_FIELDS`.
 
-`GRADE_SCHEMES` covers every scheme the handbook defines, 2／3／5／7／9 grades.
-This schedule only uses 2, 3, 5 and 7.
+`GRADE_SCHEMES` covers the 2／3／5／7-grade schemes used by this ruleset.
 """
 from app.domain.shulin_residential.adjustments import calculate_adjustment_rate
 from app.domain.shulin_residential.calculations import (

@@ -38,6 +38,8 @@ from app.domain.shulin_residential.validation import (
     require_non_negative_decimal,
 )
 
+Numeric = Decimal | float | int
+
 #: 表3 fields kept as survey records only: the Shulin ordinary-residential
 #: schedule does not list them as evaluation items, so no grading rule exists
 #: for them here and none is invented.
@@ -53,7 +55,9 @@ UNGRADED_SURVEY_FIELDS: tuple[str, ...] = (
 # Shared classification helpers
 # --------------------------------------------------------------------------- #
 
-def _grade_higher_is_better(value, cut_points: Sequence[Decimal], field: str) -> GradeResult:
+def _grade_higher_is_better(
+    value: Numeric, cut_points: Sequence[Decimal], field: str
+) -> GradeResult:
     """Grade a value where larger is better; `cut_points` descend."""
     number = require_non_negative_decimal(value, field)
     count = len(cut_points) + 1
@@ -63,7 +67,9 @@ def _grade_higher_is_better(value, cut_points: Sequence[Decimal], field: str) ->
     return GradeResult.worst(count)
 
 
-def _grade_smaller_is_better(value, cut_points: Sequence[Decimal], field: str) -> GradeResult:
+def _grade_smaller_is_better(
+    value: Numeric, cut_points: Sequence[Decimal], field: str
+) -> GradeResult:
     """Grade a value where smaller is better; `cut_points` ascend."""
     number = require_non_negative_decimal(value, field)
     count = len(cut_points) + 1
@@ -90,7 +96,7 @@ def _grade_from_groups(value, enum_type, groups: Sequence[Sequence], field: str)
     raise ValueError(f'{field} 未列於本基準的等級分組：{value!r}')
 
 
-def grade_positive_facility_distance(
+def _grade_positive_facility_distance(
     proximity: FacilityProximity, cut_points: Sequence[Decimal], field: str
 ) -> GradeResult:
     """Grade a facility whose nearness raises land value (學校、市場、車站等).
@@ -108,7 +114,7 @@ def grade_positive_facility_distance(
     return _grade_smaller_is_better(proximity.distance_m, cut_points, field)
 
 
-def grade_negative_facility_distance(
+def _grade_negative_facility_distance(
     proximity: FacilityProximity, cut_points: Sequence[Decimal], field: str
 ) -> GradeResult:
     """Grade a facility whose nearness lowers land value (特殊設施、污染源).
@@ -152,7 +158,7 @@ def grade_land_use(category: LandUseCategory) -> GradeResult:
     return _grade_from_groups(category, LandUseCategory, _LAND_USE_GROUPS, '使用分區或使用地類別')
 
 
-def grade_building_coverage_rate(rate) -> GradeResult:
+def grade_building_coverage_rate(rate: Numeric) -> GradeResult:
     """建蔽率（5 級制）。
 
     Takes the statutory coverage ratio that has already been obtained from the
@@ -165,7 +171,7 @@ def grade_building_coverage_rate(rate) -> GradeResult:
     return _grade_higher_is_better(rate, T.BUILDING_COVERAGE_RATE, '建蔽率')
 
 
-def grade_floor_area_ratio(rate) -> GradeResult:
+def grade_floor_area_ratio(rate: Numeric) -> GradeResult:
     """容積率（5 級制）。Takes an already-obtained statutory ratio, in percent."""
     return _grade_higher_is_better(rate, T.FLOOR_AREA_RATIO, '容積率')
 
@@ -191,12 +197,12 @@ def grade_building_restriction(restriction: BuildingRestriction) -> GradeResult:
 # 交通運輸
 # --------------------------------------------------------------------------- #
 
-def grade_main_road_width(width_m) -> GradeResult:
+def grade_main_road_width(width_m: Numeric) -> GradeResult:
     """主要道路寬度（5 級制），單位公尺。"""
     return _grade_higher_is_better(width_m, T.MAIN_ROAD_WIDTH, '主要道路寬度')
 
 
-def grade_average_road_width(width_m) -> GradeResult:
+def grade_average_road_width(width_m: Numeric) -> GradeResult:
     """區段內道路平均寬度（5 級制），單位公尺。
 
     Expects the value produced by
@@ -208,7 +214,7 @@ def grade_average_road_width(width_m) -> GradeResult:
 
 def grade_large_station(proximity: FacilityProximity) -> GradeResult:
     """接近大型車站之程度（5 級制）。"""
-    return grade_positive_facility_distance(proximity, T.LARGE_STATION_DISTANCE, '大型車站距離')
+    return _grade_positive_facility_distance(proximity, T.LARGE_STATION_DISTANCE, '大型車站距離')
 
 
 def grade_bus_stop_proximity(proximity: FacilityProximity) -> GradeResult:
@@ -218,12 +224,12 @@ def grade_bus_stop_proximity(proximity: FacilityProximity) -> GradeResult:
     provides no 密集程度（非常密集／密集／不密集）to grade mapping, so bus-stop
     density is deliberately not graded here.
     """
-    return grade_positive_facility_distance(proximity, T.BUS_STOP_DISTANCE, '站牌距離')
+    return _grade_positive_facility_distance(proximity, T.BUS_STOP_DISTANCE, '站牌距離')
 
 
 def grade_interchange(proximity: FacilityProximity) -> GradeResult:
     """接近交流道之程度（5 級制）。本項距離依明細表採直線距離。"""
-    return grade_positive_facility_distance(proximity, T.INTERCHANGE_DISTANCE, '交流道距離')
+    return _grade_positive_facility_distance(proximity, T.INTERCHANGE_DISTANCE, '交流道距離')
 
 
 _ROAD_DEVELOPMENT_GROUPS: tuple[tuple[RoadDevelopmentLevel, ...], ...] = (
@@ -272,7 +278,7 @@ def grade_landscape(level: LandscapeLevel) -> GradeResult:
     return _grade_from_groups(level, LandscapeLevel, _LANDSCAPE_GROUPS, '景觀')
 
 
-def grade_slope(degree) -> GradeResult:
+def grade_slope(degree: Numeric) -> GradeResult:
     """傾斜度（5 級制），單位度。平均坡度越小越優。"""
     return _grade_smaller_is_better(degree, T.SLOPE_DEGREE, '傾斜度')
 
@@ -316,32 +322,32 @@ def grade_building_site_improvement(completed_items: Collection[ImprovementType]
 
 def grade_school_proximity(proximity: FacilityProximity) -> GradeResult:
     """接近學校之程度（5 級制）。"""
-    return grade_positive_facility_distance(proximity, T.SCHOOL_DISTANCE, '學校距離')
+    return _grade_positive_facility_distance(proximity, T.SCHOOL_DISTANCE, '學校距離')
 
 
 def grade_market_proximity(proximity: FacilityProximity) -> GradeResult:
     """接近市場之程度（5 級制）。"""
-    return grade_positive_facility_distance(proximity, T.MARKET_DISTANCE, '市場距離')
+    return _grade_positive_facility_distance(proximity, T.MARKET_DISTANCE, '市場距離')
 
 
 def grade_park_proximity(proximity: FacilityProximity) -> GradeResult:
     """接近公園、廣場、徒步區之程度（5 級制）。"""
-    return grade_positive_facility_distance(proximity, T.PARK_DISTANCE, '公園廣場徒步區距離')
+    return _grade_positive_facility_distance(proximity, T.PARK_DISTANCE, '公園廣場徒步區距離')
 
 
 def grade_tourism_facility_proximity(proximity: FacilityProximity) -> GradeResult:
     """接近觀光遊憩設施之程度（5 級制）。"""
-    return grade_positive_facility_distance(proximity, T.TOURISM_FACILITY_DISTANCE, '觀光遊憩設施距離')
+    return _grade_positive_facility_distance(proximity, T.TOURISM_FACILITY_DISTANCE, '觀光遊憩設施距離')
 
 
 def grade_parking_convenience(proximity: FacilityProximity) -> GradeResult:
     """停車場地之便利程度（5 級制）。"""
-    return grade_positive_facility_distance(proximity, T.PARKING_DISTANCE, '停車場地距離')
+    return _grade_positive_facility_distance(proximity, T.PARKING_DISTANCE, '停車場地距離')
 
 
 def grade_service_facility_proximity(proximity: FacilityProximity) -> GradeResult:
     """接近服務性設施之程度（5 級制），例如郵局、醫院、機關。"""
-    return grade_positive_facility_distance(proximity, T.SERVICE_FACILITY_DISTANCE, '服務性設施距離')
+    return _grade_positive_facility_distance(proximity, T.SERVICE_FACILITY_DISTANCE, '服務性設施距離')
 
 
 # --------------------------------------------------------------------------- #
@@ -350,17 +356,17 @@ def grade_service_facility_proximity(proximity: FacilityProximity) -> GradeResul
 
 def grade_utility_facility_proximity(proximity: FacilityProximity) -> GradeResult:
     """電業設施及公用氣體燃料設施（5 級制），例如變電所、高壓鐵塔、瓦斯槽、儲油槽。越遠越優。"""
-    return grade_negative_facility_distance(proximity, T.NUISANCE_DISTANCE, '電業及公用氣體燃料設施距離')
+    return _grade_negative_facility_distance(proximity, T.NUISANCE_DISTANCE, '電業及公用氣體燃料設施距離')
 
 
 def grade_funeral_facility_proximity(proximity: FacilityProximity) -> GradeResult:
     """殯葬設施（5 級制），例如墓地、殯儀館、火葬場、納骨塔。越遠越優。"""
-    return grade_negative_facility_distance(proximity, T.NUISANCE_DISTANCE, '殯葬設施距離')
+    return _grade_negative_facility_distance(proximity, T.NUISANCE_DISTANCE, '殯葬設施距離')
 
 
 def grade_waste_facility_proximity(proximity: FacilityProximity) -> GradeResult:
     """廢棄物處理設施（5 級制），例如污水處理場、垃圾場、掩埋場、焚化爐。越遠越優。"""
-    return grade_negative_facility_distance(proximity, T.NUISANCE_DISTANCE, '廢棄物處理設施距離')
+    return _grade_negative_facility_distance(proximity, T.NUISANCE_DISTANCE, '廢棄物處理設施距離')
 
 
 # --------------------------------------------------------------------------- #
@@ -378,7 +384,7 @@ def grade_environment_pollution(proximity: FacilityProximity) -> GradeResult:
     function does not choose among multiple sources, and in particular does not
     assume the nearest one applies.
     """
-    return grade_negative_facility_distance(proximity, T.NUISANCE_DISTANCE, '環境污染源距離')
+    return _grade_negative_facility_distance(proximity, T.NUISANCE_DISTANCE, '環境污染源距離')
 
 
 # --------------------------------------------------------------------------- #
@@ -399,4 +405,6 @@ def grade_other_factor(label: GradeLabel) -> GradeResult:
     if not isinstance(label, GradeLabel):
         raise ValueError('其他影響因素等級必須為 GradeLabel。')
     scheme = GRADE_SCHEMES[7]
+    if label not in scheme:
+        raise ValueError('其他影響因素等級必須為極優、優、稍優、普通、稍劣、劣或極劣。')
     return GradeResult.of(scheme.index(label) + 1, 7)

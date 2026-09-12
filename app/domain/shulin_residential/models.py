@@ -11,17 +11,13 @@ from app.domain.shulin_residential.validation import (
 L = GradeLabel
 
 #: Label ordering per grade-scheme size. Index 1 is always the best grade.
-#: Every scheme the handbook defines is supported, including the 9-grade scheme,
-#: which Shulin ordinary-residential does not currently use: its rows are 2, 3, 5
-#: and 7 grades only.
+#: Grade schemes used by the Shulin ordinary-residential ruleset.
 GRADE_SCHEMES: dict[int, tuple[GradeLabel, ...]] = {
     2: (L.EXCELLENT, L.POOR),
     3: (L.EXCELLENT, L.NORMAL, L.POOR),
     5: (L.EXCELLENT, L.SLIGHTLY_BETTER, L.NORMAL, L.SLIGHTLY_WORSE, L.POOR),
     7: (L.EXTREMELY_EXCELLENT, L.EXCELLENT, L.SLIGHTLY_BETTER, L.NORMAL,
         L.SLIGHTLY_WORSE, L.POOR, L.EXTREMELY_POOR),
-    9: (L.SUPREMELY_EXCELLENT, L.EXTREMELY_EXCELLENT, L.EXCELLENT, L.SLIGHTLY_BETTER,
-        L.NORMAL, L.SLIGHTLY_WORSE, L.POOR, L.EXTREMELY_POOR, L.SUPREMELY_POOR),
 }
 
 

@@ -30,6 +30,10 @@ def calculate_average_road_width(opened_road_widths_m: Sequence[float]) -> float
         ValueError: If the sequence is empty (never divides by zero) or any
             width is negative, non-numeric or non-finite.
     """
+    if isinstance(opened_road_widths_m, (str, bytes)) or not isinstance(
+        opened_road_widths_m, Sequence
+    ):
+        raise ValueError('已開闢道路寬度必須為數值序列。')
     widths = list(opened_road_widths_m)
     if not widths:
         raise ValueError('已開闢道路條數為 0，無法計算平均寬度。')

@@ -35,6 +35,7 @@ def test_average_road_width_counts_only_supplied_opened_roads():
 
 @pytest.mark.parametrize('widths', [
     [], (), [-1], [8, -0.1], [8, float('nan')], [float('inf')], ['6'], [None], [True],
+    None, 6, '6,8', (width for width in (6, 8)),
 ])
 def test_average_road_width_rejects_invalid(widths):
     with pytest.raises(ValueError):
