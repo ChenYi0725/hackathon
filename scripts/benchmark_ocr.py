@@ -23,7 +23,7 @@ def score(lines, cells):
     return matches
 
 
-def run(candidate, fixtures, output, repeats):
+def run(candidate, fixtures, output, repeats, document_name=None):
     start = time.perf_counter()
     import numpy as np
     import pypdfium2 as pdfium
@@ -58,6 +58,10 @@ def run(candidate, fixtures, output, repeats):
                     for t,b,s in zip(result.txts,result.boxes,result.scores)]
     load_seconds=time.perf_counter()-start
     truth=json.loads((fixtures/'truth.json').read_text())
+    if document_name:
+        truth=[document for document in truth if document['file']==document_name]
+        if not truth:
+            raise ValueError('Document not found in ground truth')
     results=[]
     for repeat in range(repeats):
         for document in truth:
@@ -85,5 +89,6 @@ if __name__=='__main__':
     parser.add_argument('--fixtures',type=Path,default=Path('tests/fixtures/ocr_benchmark'))
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--repeats',type=int,default=3)
+    parser.add_argument('--document',help='Run one fixture, useful for fresh-process timing')
     args=parser.parse_args()
-    run(args.candidate,args.fixtures,args.output,args.repeats)
+    run(args.candidate,args.fixtures,args.output,args.repeats,args.document)
