@@ -3,6 +3,7 @@ from datetime import date
 from typing import Protocol
 from app.domain.models import Case, Factor
 from app.application.rag_contracts import EvidenceQuery, EvidenceHit, AnswerDraft
+from app.application.agent_contracts import AgentTurn
 
 
 class PdfReader(Protocol):
@@ -44,3 +45,7 @@ class EvidenceRetriever(Protocol):
 
 class EvidenceAnswerer(Protocol):
     def answer(self, question: str, hits: list[EvidenceHit]) -> AnswerDraft: ...
+
+
+class AgentModel(Protocol):
+    def next_turn(self, context: dict, history: list[dict], tools: list[dict]) -> AgentTurn: ...

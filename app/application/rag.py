@@ -8,9 +8,10 @@ from app.domain.applicability import require_ruleset_scope, valuation_day
 
 class RagService:
     def __init__(self, repository: ReviewRepository, pdf: PdfReader,
-                 retriever: EvidenceRetriever, answerer: EvidenceAnswerer):
+                 retriever: EvidenceRetriever, answerer: EvidenceAnswerer, agent=None):
         self.repository, self.pdf = repository, pdf
         self.retriever, self.answerer = retriever, answerer
+        self.agent = agent
 
     def upload_source(self, ruleset_id, data, name, valid_from, valid_to):
         rules = self.repository.get_rules(ruleset_id)

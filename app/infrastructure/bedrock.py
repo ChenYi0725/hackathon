@@ -103,7 +103,7 @@ class BedrockFieldExtractor:
         rules = [{k: r[k] for k in ('id', 'name', 'scope', 'unit')} for r in ruleset['rules']]
         return self.converse(SYSTEM_PROMPT, json.dumps(rules, ensure_ascii=False) + '\n文件：\n' + content, 4096)
 
-    def converse(self, system, content, max_tokens):
+    def converse(self, system, content, max_tokens, *, messages=None, tool_config=None):
         """Caller must hold bedrock.lock across all attempts and cache writes."""
         from botocore.exceptions import BotoCoreError, ClientError
         for attempt in range(3):
@@ -112,7 +112,8 @@ class BedrockFieldExtractor:
                 return self._client().converse(
                     modelId=self.settings.model_id,
                     system=[{'text': system}],
-                    messages=[{'role': 'user', 'content': [{'text': content}]}],
+                    messages=messages if messages is not None else [{'role': 'user', 'content': [{'text': content}]}],
+                    **({'toolConfig': tool_config} if tool_config else {}),
                     inferenceConfig={'maxTokens': max_tokens, 'temperature': 0},
                 )
             except ClientError as exc:

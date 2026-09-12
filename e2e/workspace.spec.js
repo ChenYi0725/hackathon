@@ -253,3 +253,29 @@ test('RAG uploads a scoped source, retrieves locally and requires cloud consent'
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/rag-mobile.png',fullPage:true});
 });
+
+
+test('Agent mode shows function trace and separate deterministic review', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button',{name:'建立錯誤示範'}).click();
+  await page.getByRole('button',{name:'依據問答',exact:true}).click();
+  await page.locator('#rag-question').fill('寬度依據與審查結果');
+  let calls=0;
+  await page.route('**/api/cases/*/agent-evidence',async route=>{
+    calls++;
+    expect(route.request().postDataJSON().cloud_data_approved).toBe(true);
+    await route.fulfill({json:{case_revision:1,status:'insufficient_evidence',message:'Agent 合成測試',hits:[],statements:[],
+      tool_trace:[{tool:'search_evidence',status:'success'},{tool:'review_case',status:'success'}],
+      review:{counts:{pass:0,error:0,pending:1,missing:0},checks:[{title:'寬度',message:'等待人工確認'}]}}});
+  });
+  await page.locator('#rag-agent').click();
+  await expect(page.locator('#rag-results')).toContainText('請先確認');
+  expect(calls).toBe(0);
+  await page.locator('#rag-consent').check();
+  await page.locator('#rag-agent').click();
+  await expect(page.locator('#rag-results')).toContainText('search_evidence（success） → review_case（success）');
+  await page.getByText('程式審查結果（版本 1）',{exact:true}).click();
+  await expect(page.locator('#rag-results')).toContainText('等待人工確認');
+  expect(calls).toBe(1);
+  await page.screenshot({path:'test-results/agentic-rag.png',fullPage:true});
+});
