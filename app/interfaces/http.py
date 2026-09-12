@@ -102,7 +102,7 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
     @app.get('/api/health')
     def health():
         config = app.state.settings
-        return dict(status='ok', version='1.1.0', ocr_provider='paddleocr', ai_provider='bedrock',
+        return dict(status='ok', version='1.1.0', ocr_provider='paddleocr', ocr_device=config.ocr_device, ai_provider='bedrock',
                     ai_configured=config.ai_enabled and bool(config.model_id), ai_model=config.model_id, ai_region=config.region)
 
     @app.get('/api/cases')

@@ -1,10 +1,33 @@
-"""Local CPU OCR worker; never calls an external document-processing service."""
+"""CPU or NVIDIA GPU OCR worker; document processing stays on the service host."""
 import json
 import math
 import statistics
 import sys
 import unicodedata
 from pathlib import Path
+
+
+class GpuUnavailable(RuntimeError):
+    """The explicitly requested GPU cannot be used; never fall back to CPU."""
+
+
+def create_ocr(options):
+    import paddle
+    from paddleocr import PaddleOCR
+    device = options.get('device', 'cpu')
+    if device.startswith('gpu:'):
+        try:
+            if not paddle.is_compiled_with_cuda() or int(device.split(':')[1]) >= paddle.device.cuda.device_count():
+                raise GpuUnavailable
+            paddle.set_device(device)
+        except Exception as exc:
+            raise GpuUnavailable from exc
+    return PaddleOCR(
+        device=device,
+        text_detection_model_name=options['detection_model'], text_recognition_model_name=options['recognition_model'],
+        use_doc_orientation_classify=False, use_doc_unwarping=False, use_textline_orientation=False,
+        cpu_threads=options['cpu_threads'], enable_mkldnn=False,
+    )
 
 
 def layout_text(lines, width):
@@ -36,7 +59,6 @@ def layout_text(lines, width):
 def recognize(path, options):
     import numpy as np
     import pypdfium2 as pdfium
-    from paddleocr import PaddleOCR
     try:
         document = pdfium.PdfDocument(str(path))
         if not 1 <= len(document) <= 200:
@@ -49,14 +71,9 @@ def recognize(path, options):
                 raise ValueError
     except Exception:
         raise ValueError('invalid_pdf') from None
-    ocr = PaddleOCR(
-        device='cpu',
-        text_detection_model_name=options['detection_model'], text_recognition_model_name=options['recognition_model'],
-        use_doc_orientation_classify=False, use_doc_unwarping=False, use_textline_orientation=False,
-        cpu_threads=options['cpu_threads'], enable_mkldnn=False,
-    )
     pages = []
     try:
+        ocr = create_ocr(options)
         for index in range(len(document)):
             page = document[index]
             bitmap = page.render(scale=options['dpi'] / 72)
@@ -76,7 +93,8 @@ def recognize(path, options):
             text = layout_text(lines, width)
             if len(text) > 100000:
                 raise ValueError('invalid_pdf')
-            pages.append({'page': index + 1, 'text': text, 'method': 'paddleocr', 'width': width, 'height': height, 'lines': lines})
+            pages.append({'page': index + 1, 'text': text, 'method': 'paddleocr',
+                          'device': options.get('device', 'cpu'), 'width': width, 'height': height, 'lines': lines})
             image.close()
             bitmap.close()
             page.close()
@@ -90,6 +108,9 @@ def main():
     try:
         result = {'pages': recognize(Path(path), json.loads(options))}
         exit_code = 0
+    except GpuUnavailable:
+        result = {'error': 'gpu_unavailable'}
+        exit_code = 1
     except Exception as exc:
         result = {'error': 'invalid_pdf' if str(exc) == 'invalid_pdf' else 'ocr_failed'}
         exit_code = 1

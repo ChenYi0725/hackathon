@@ -214,12 +214,16 @@ tests/             領域、應用流程、介接契約及選用真實 OCR 測�
 | `BEDROCK_MIN_INTERVAL` | `1.1` 秒 | 所有模型嘗試間隔，包含重試 |
 | `OCR_DPI` | `180` | PDF 轉圖片解析度（72–300） |
 | `OCR_CPU_THREADS` | `2` | CPU 執行緒數（1–8） |
+| `OCR_DEVICE` | `cpu` | 可設 `gpu:0` 使用 NVIDIA GPU；需要 GPU 主機、驅動及 GPU 版 PaddlePaddle |
 | `OCR_TIMEOUT_SECONDS` | `300` | 每份 PDF 的辨識逾時，首次下載可暫提高 |
 | `OCR_DETECTION_MODEL` | `PP-OCRv5_mobile_det` | 文字偵測模型 |
 | `OCR_RECOGNITION_MODEL` | `PP-OCRv5_server_rec` | 文字辨識模型 |
 | `SEED_EXAMPLES` | `true` | AWS 環境應設 `false`，只匯入符合規範的資料 |
 
 OCR 在獨立子程序執行；超過時間會終止，不把 AWS 憑證環境變數傳給子程序。每頁限制最大約 1,400 萬像素。長文件或密集表格請拆分；AI 輸入上限為 60,000 字元，模型截斷輸出不會成為草稿。
+
+GPU 選擇與錯誤檢查已接線；目前 AWS GPU 配額仍為 0，線上網站尚未切換 GPU。
+GPU 安裝、設定與真實驗收指令見 [PaddleOCR GPU](docs/ocr-gpu.md)。
 
 ## 競賽環境
 
