@@ -1,0 +1,1090 @@
+{
+  "mode": "real-bedrock",
+  "model": "qwen.qwen3-32b-v1:0",
+  "region": "us-west-2",
+  "started_at": "2026-09-12T05:27:10.051193+00:00",
+  "data": "synthetic PDFs and synthetic single-factor rules only",
+  "results": [
+    {
+      "id": "rule_and_calculation",
+      "question": "請先用 get_rule 查看 width 規則，再用 review_case 審查本案。計算由程式完成，不要自行運算；若沒有文件引用，仍保留程式審查結果。",
+      "criteria": {
+        "required_tools": true,
+        "expected_status": true,
+        "no_tool_errors": true,
+        "source_scope_and_quotes": true,
+        "statement_citations": true,
+        "abstained": true,
+        "review_matches_engine": true,
+        "golden_numeric_result": true,
+        "golden_factor_status": true,
+        "not_false_complete": true,
+        "golden_matrix_rate": true,
+        "rule_tool_payload": true,
+        "case_and_audit_unchanged": true
+      },
+      "passed": true,
+      "response": {
+        "case_revision": 1,
+        "ruleset_id": "custom-6b7864569a7740dea0cc5ddb14144e35",
+        "ruleset_version": "eval-v1",
+        "status": "insufficient_evidence",
+        "statements": [],
+        "hits": [],
+        "tool_trace": [
+          {
+            "tool": "get_rule",
+            "status": "success"
+          },
+          {
+            "tool": "review_case",
+            "status": "success"
+          }
+        ],
+        "review": {
+          "checks": [
+            {
+              "id": "width",
+              "title": "寬度",
+              "status": "pass",
+              "message": "比準地「寬」對比較標的「窄」，查矩陣為 +2%。",
+              "actual": 2.0,
+              "expected": 2.0,
+              "subject_grade": "寬",
+              "comparable_grade": "窄",
+              "factor_id": "width",
+              "scope": "individual",
+              "group": "合成測試",
+              "rule_page": 1,
+              "page": 3
+            },
+            {
+              "id": "norm_individual",
+              "title": "個別因素合計・基準重算",
+              "status": "pending",
+              "message": "上游資料或基準待確認，暫不判定總修正數。",
+              "actual": null,
+              "expected": null,
+              "page": 3
+            },
+            {
+              "id": "norm_regional_detail",
+              "title": "表 5-2 區域因素總修正數・基準重算",
+              "status": "pending",
+              "message": "上游資料或基準待確認，暫不判定總修正數。",
+              "actual": null,
+              "expected": null,
+              "page": 2
+            },
+            {
+              "id": "cross",
+              "title": "跨表抄填",
+              "status": "pending",
+              "message": "總計欄位未確認或計算資料不足。",
+              "actual": null,
+              "expected": null,
+              "total_field": "regional_carried",
+              "page": 3
+            },
+            {
+              "id": "absolute",
+              "title": "調整百分率絕對值加總",
+              "status": "pending",
+              "message": "總計欄位未確認或計算資料不足。",
+              "actual": null,
+              "expected": null,
+              "total_field": "absolute",
+              "page": 3
+            },
+            {
+              "id": "adjusted",
+              "title": "估價基準日單價",
+              "status": "pending",
+              "message": "總計欄位未確認或計算資料不足。",
+              "actual": null,
+              "expected": null,
+              "total_field": "adjusted_price",
+              "page": 3
+            },
+            {
+              "id": "trial",
+              "title": "比較標的試算價格",
+              "status": "pending",
+              "message": "總計欄位未確認或計算資料不足。",
+              "actual": null,
+              "expected": null,
+              "total_field": "trial_price",
+              "page": 3
+            },
+            {
+              "id": "weight",
+              "title": "單一比較標的權重",
+              "status": "pending",
+              "message": "總計欄位未確認或計算資料不足。",
+              "actual": null,
+              "expected": null,
+              "total_field": "weight",
+              "page": 3
+            }
+          ],
+          "counts": {
+            "pass": 1,
+            "error": 0,
+            "pending": 7,
+            "missing": 0
+          },
+          "complete": false,
+          "ruleset_id": "custom-6b7864569a7740dea0cc5ddb14144e35",
+          "ruleset_version": "eval-v1",
+          "computed": {
+            "individual": 2.0,
+            "regional": 0.0
+          }
+        },
+        "message": "Agent 說明為待核對草稿；下方審查結果由確定性引擎產生。"
+      },
+      "tool_results": [
+        {
+          "id": "tooluse_EpMdSzZBxUAiz827cEFdJs",
+          "status": "success",
+          "data": {
+            "ruleset_id": "custom-6b7864569a7740dea0cc5ddb14144e35",
+            "ruleset_version": "eval-v1",
+            "rule": {
+              "id": "width",
+              "name": "寬度",
+              "group": "合成測試",
+              "unit": "m",
+              "scope": "individual",
+              "source_page": 1,
+              "bands": [
+                {
+                  "label": "窄",
+                  "low": 0,
+                  "high": 10
+                },
+                {
+                  "label": "寬",
+                  "low": 10,
+                  "high": null
+                }
+              ],
+              "matrix": [
+                [
+                  0,
+                  -2
+                ],
+                [
+                  2,
+                  0
+                ]
+              ]
+            },
+            "warning": "程式中的規則設定，不代表原文或人工核准。"
+          }
+        },
+        {
+          "id": "tooluse_eeb24lqOt1vGTH2tlBXW9q",
+          "status": "success",
+          "data": {
+            "case_revision": 1,
+            "counts": {
+              "pass": 1,
+              "error": 0,
+              "pending": 7,
+              "missing": 0
+            },
+            "computed": {
+              "individual": 2.0,
+              "regional": 0.0
+            },
+            "complete": false,
+            "checks": [
+              {
+                "id": "width",
+                "title": "寬度",
+                "status": "pass",
+                "message": "比準地「寬」對比較標的「窄」，查矩陣為 +2%。",
+                "actual": 2.0,
+                "expected": 2.0,
+                "subject_grade": "寬",
+                "comparable_grade": "窄",
+                "factor_id": "width",
+                "scope": "individual",
+                "group": "合成測試",
+                "rule_page": 1,
+                "page": 3
+              },
+              {
+                "id": "norm_individual",
+                "title": "個別因素合計・基準重算",
+                "status": "pending",
+                "message": "上游資料或基準待確認，暫不判定總修正數。",
+                "actual": null,
+                "expected": null,
+                "page": 3
+              },
+              {
+                "id": "norm_regional_detail",
+                "title": "表 5-2 區域因素總修正數・基準重算",
+                "status": "pending",
+                "message": "上游資料或基準待確認，暫不判定總修正數。",
+                "actual": null,
+                "expected": null,
+                "page": 2
+              },
+              {
+                "id": "cross",
+                "title": "跨表抄填",
+                "status": "pending",
+                "message": "總計欄位未確認或計算資料不足。",
+                "actual": null,
+                "expected": null,
+                "total_field": "regional_carried",
+                "page": 3
+              },
+              {
+                "id": "absolute",
+                "title": "調整百分率絕對值加總",
+                "status": "pending",
+                "message": "總計欄位未確認或計算資料不足。",
+                "actual": null,
+                "expected": null,
+                "total_field": "absolute",
+                "page": 3
+              },
+              {
+                "id": "adjusted",
+                "title": "估價基準日單價",
+                "status": "pending",
+                "message": "總計欄位未確認或計算資料不足。",
+                "actual": null,
+                "expected": null,
+                "total_field": "adjusted_price",
+                "page": 3
+              },
+              {
+                "id": "trial",
+                "title": "比較標的試算價格",
+                "status": "pending",
+                "message": "總計欄位未確認或計算資料不足。",
+                "actual": null,
+                "expected": null,
+                "total_field": "trial_price",
+                "page": 3
+              },
+              {
+                "id": "weight",
+                "title": "單一比較標的權重",
+                "status": "pending",
+                "message": "總計欄位未確認或計算資料不足。",
+                "actual": null,
+                "expected": null,
+                "total_field": "weight",
+                "page": 3
+              }
+            ],
+            "source": "deterministic-engine"
+          }
+        }
+      ],
+      "model_turns": 3,
+      "aws_calls": [
+        {
+          "stop_reason": "tool_use",
+          "usage": {
+            "inputTokens": 1027,
+            "outputTokens": 21,
+            "totalTokens": 1048
+          },
+          "tools": [
+            "get_rule"
+          ],
+          "final_text": ""
+        },
+        {
+          "stop_reason": "tool_use",
+          "usage": {
+            "inputTokens": 1189,
+            "outputTokens": 16,
+            "totalTokens": 1205
+          },
+          "tools": [
+            "review_case"
+          ],
+          "final_text": ""
+        },
+        {
+          "stop_reason": "end_turn",
+          "usage": {
+            "inputTokens": 1714,
+            "outputTokens": 12,
+            "totalTokens": 1726
+          },
+          "tools": [],
+          "final_text": "{\"statements\":[],\"insufficient_evidence\":true}"
+        }
+      ],
+      "elapsed_seconds": 3.26
+    },
+    {
+      "id": "no_source",
+      "question": "請搜尋 PDF 文件的寬度規定。找不到原始文件就回報依據不足，不得拿程式規則冒充原文。",
+      "criteria": {
+        "required_tools": true,
+        "expected_status": true,
+        "no_tool_errors": true,
+        "source_scope_and_quotes": true,
+        "statement_citations": true,
+        "abstained": true,
+        "empty_hits": true,
+        "case_and_audit_unchanged": true
+      },
+      "passed": true,
+      "response": {
+        "case_revision": 1,
+        "ruleset_id": "custom-ab1513b846d74de8875a75790268fd50",
+        "ruleset_version": "eval-v1",
+        "status": "insufficient_evidence",
+        "statements": [],
+        "hits": [],
+        "tool_trace": [
+          {
+            "tool": "search_evidence",
+            "status": "success"
+          }
+        ],
+        "review": null,
+        "message": "Agent 說明為待核對草稿；下方審查結果由確定性引擎產生。"
+      },
+      "tool_results": [
+        {
+          "id": "tooluse_FUKFoGsxyWFf9rgZHkmB22",
+          "status": "success",
+          "data": {
+            "hits": []
+          }
+        }
+      ],
+      "model_turns": 2,
+      "aws_calls": [
+        {
+          "stop_reason": "tool_use",
+          "usage": {
+            "inputTokens": 1012,
+            "outputTokens": 23,
+            "totalTokens": 1035
+          },
+          "tools": [
+            "search_evidence"
+          ],
+          "final_text": ""
+        },
+        {
+          "stop_reason": "end_turn",
+          "usage": {
+            "inputTokens": 1052,
+            "outputTokens": 12,
+            "totalTokens": 1064
+          },
+          "tools": [],
+          "final_text": "{\"statements\":[],\"insufficient_evidence\":true}"
+        }
+      ],
+      "elapsed_seconds": 2.15
+    },
+    {
+      "id": "wrong_version",
+      "question": "請搜尋適用本案的寬度原始文件，只能使用案件綁定版本；沒有適用版本就回報依據不足。",
+      "criteria": {
+        "required_tools": true,
+        "expected_status": true,
+        "no_tool_errors": true,
+        "source_scope_and_quotes": true,
+        "statement_citations": true,
+        "abstained": true,
+        "empty_hits": true,
+        "case_and_audit_unchanged": true
+      },
+      "passed": true,
+      "response": {
+        "case_revision": 1,
+        "ruleset_id": "custom-2a07a78300054fd9b68b0793e85f79f8",
+        "ruleset_version": "eval-v1",
+        "status": "insufficient_evidence",
+        "statements": [],
+        "hits": [],
+        "tool_trace": [
+          {
+            "tool": "search_evidence",
+            "status": "success"
+          }
+        ],
+        "review": null,
+        "message": "Agent 說明為待核對草稿；下方審查結果由確定性引擎產生。"
+      },
+      "tool_results": [
+        {
+          "id": "tooluse_ONbxUCkIZ3YLJEvMD80nOr",
+          "status": "success",
+          "data": {
+            "hits": []
+          }
+        }
+      ],
+      "model_turns": 2,
+      "aws_calls": [
+        {
+          "stop_reason": "tool_use",
+          "usage": {
+            "inputTokens": 1015,
+            "outputTokens": 27,
+            "totalTokens": 1042
+          },
+          "tools": [
+            "search_evidence"
+          ],
+          "final_text": ""
+        },
+        {
+          "stop_reason": "end_turn",
+          "usage": {
+            "inputTokens": 1059,
+            "outputTokens": 12,
+            "totalTokens": 1071
+          },
+          "tools": [],
+          "final_text": "{\"statements\":[],\"insufficient_evidence\":true}"
+        }
+      ],
+      "elapsed_seconds": 2.11
+    },
+    {
+      "id": "missing_data",
+      "question": "請用 review_case 檢查案件缺值，資料不足不能補零或宣告通過。請保留程式審查結果。",
+      "criteria": {
+        "required_tools": true,
+        "expected_status": true,
+        "no_tool_errors": true,
+        "source_scope_and_quotes": true,
+        "statement_citations": true,
+        "abstained": true,
+        "review_matches_engine": true,
+        "golden_numeric_result": true,
+        "golden_factor_status": true,
+        "not_false_complete": true,
+        "case_and_audit_unchanged": true
+      },
+      "passed": true,
+      "response": {
+        "case_revision": 1,
+        "ruleset_id": "custom-d5996e3ee9844998900a60dd18be0439",
+        "ruleset_version": "eval-v1",
+        "status": "insufficient_evidence",
+        "statements": [],
+        "hits": [],
+        "tool_trace": [
+          {
+            "tool": "review_case",
+            "status": "success"
+          }
+        ],
+        "review": {
+          "checks": [
+            {
+              "id": "width",
+              "title": "寬度",
+              "status": "missing",
+              "message": "資料缺漏、單位不符或未能對應唯一級距。",
+              "actual": 2.0,
+              "expected": null,
+              "factor_id": "width",
+              "scope": "individual",
+              "group": "合成測試",
+              "rule_page": 1,
+              "page": 3
+            },
+            {
+              "id": "norm_individual",
+              "title": "個別因素合計・基準重算",
+              "status": "pending",
+              "message": "上游資料或基準待確認，暫不判定總修正數。",
+              "actual": null,
+              "expected": null,
+              "page": 3
+            },
+            {
+              "id": "norm_regional_detail",
+              "title": "表 5-2 區域因素總修正數・基準重算",
+              "status": "pending",
+              "message": "上游資料或基準待確認，暫不判定總修正數。",
+              "actual": null,
+              "expected": null,
+              "page": 2
+            },
+            {
+              "id": "cross",
+              "title": "跨表抄填",
+              "status": "pending",
+              "message": "總計欄位未確認或計算資料不足。",
+              "actual": null,
+              "expected": null,
+              "total_field": "regional_carried",
+              "page": 3
+            },
+            {
+              "id": "absolute",
+              "title": "調整百分率絕對值加總",
+              "status": "pending",
+              "message": "總計欄位未確認或計算資料不足。",
+              "actual": null,
+              "expected": null,
+              "total_field": "absolute",
+              "page": 3
+            },
+            {
+              "id": "adjusted",
+              "title": "估價基準日單價",
+              "status": "pending",
+              "message": "總計欄位未確認或計算資料不足。",
+              "actual": null,
+              "expected": null,
+              "total_field": "adjusted_price",
+              "page": 3
+            },
+            {
+              "id": "trial",
+              "title": "比較標的試算價格",
+              "status": "pending",
+              "message": "總計欄位未確認或計算資料不足。",
+              "actual": null,
+              "expected": null,
+              "total_field": "trial_price",
+              "page": 3
+            },
+            {
+              "id": "weight",
+              "title": "單一比較標的權重",
+              "status": "pending",
+              "message": "總計欄位未確認或計算資料不足。",
+              "actual": null,
+              "expected": null,
+              "total_field": "weight",
+              "page": 3
+            }
+          ],
+          "counts": {
+            "pass": 0,
+            "error": 0,
+            "pending": 7,
+            "missing": 1
+          },
+          "complete": false,
+          "ruleset_id": "custom-d5996e3ee9844998900a60dd18be0439",
+          "ruleset_version": "eval-v1",
+          "computed": {
+            "individual": null,
+            "regional": 0.0
+          }
+        },
+        "message": "Agent 說明為待核對草稿；下方審查結果由確定性引擎產生。"
+      },
+      "tool_results": [
+        {
+          "id": "tooluse_0FERpIPXXHuxRZpjTtVS0P",
+          "status": "success",
+          "data": {
+            "case_revision": 1,
+            "counts": {
+              "pass": 0,
+              "error": 0,
+              "pending": 7,
+              "missing": 1
+            },
+            "computed": {
+              "individual": null,
+              "regional": 0.0
+            },
+            "complete": false,
+            "checks": [
+              {
+                "id": "width",
+                "title": "寬度",
+                "status": "missing",
+                "message": "資料缺漏、單位不符或未能對應唯一級距。",
+                "actual": 2.0,
+                "expected": null,
+                "factor_id": "width",
+                "scope": "individual",
+                "group": "合成測試",
+                "rule_page": 1,
+                "page": 3
+              },
+              {
+                "id": "norm_individual",
+                "title": "個別因素合計・基準重算",
+                "status": "pending",
+                "message": "上游資料或基準待確認，暫不判定總修正數。",
+                "actual": null,
+                "expected": null,
+                "page": 3
+              },
+              {
+                "id": "norm_regional_detail",
+                "title": "表 5-2 區域因素總修正數・基準重算",
+                "status": "pending",
+                "message": "上游資料或基準待確認，暫不判定總修正數。",
+                "actual": null,
+                "expected": null,
+                "page": 2
+              },
+              {
+                "id": "cross",
+                "title": "跨表抄填",
+                "status": "pending",
+                "message": "總計欄位未確認或計算資料不足。",
+                "actual": null,
+                "expected": null,
+                "total_field": "regional_carried",
+                "page": 3
+              },
+              {
+                "id": "absolute",
+                "title": "調整百分率絕對值加總",
+                "status": "pending",
+                "message": "總計欄位未確認或計算資料不足。",
+                "actual": null,
+                "expected": null,
+                "total_field": "absolute",
+                "page": 3
+              },
+              {
+                "id": "adjusted",
+                "title": "估價基準日單價",
+                "status": "pending",
+                "message": "總計欄位未確認或計算資料不足。",
+                "actual": null,
+                "expected": null,
+                "total_field": "adjusted_price",
+                "page": 3
+              },
+              {
+                "id": "trial",
+                "title": "比較標的試算價格",
+                "status": "pending",
+                "message": "總計欄位未確認或計算資料不足。",
+                "actual": null,
+                "expected": null,
+                "total_field": "trial_price",
+                "page": 3
+              },
+              {
+                "id": "weight",
+                "title": "單一比較標的權重",
+                "status": "pending",
+                "message": "總計欄位未確認或計算資料不足。",
+                "actual": null,
+                "expected": null,
+                "total_field": "weight",
+                "page": 3
+              }
+            ],
+            "source": "deterministic-engine"
+          }
+        }
+      ],
+      "model_turns": 2,
+      "aws_calls": [
+        {
+          "stop_reason": "tool_use",
+          "usage": {
+            "inputTokens": 1012,
+            "outputTokens": 16,
+            "totalTokens": 1028
+          },
+          "tools": [
+            "review_case"
+          ],
+          "final_text": ""
+        },
+        {
+          "stop_reason": "end_turn",
+          "usage": {
+            "inputTokens": 1514,
+            "outputTokens": 12,
+            "totalTokens": 1526
+          },
+          "tools": [],
+          "final_text": "{\"statements\":[],\"insufficient_evidence\":true}"
+        }
+      ],
+      "elapsed_seconds": 2.24
+    },
+    {
+      "id": "conflicting_sources",
+      "question": "請搜尋並核對寬度的合成文件。兩份文件對同一修正率若互相矛盾，應回報依據不足，不可挑一份當成答案。",
+      "criteria": {
+        "required_tools": true,
+        "expected_status": true,
+        "no_tool_errors": true,
+        "source_scope_and_quotes": true,
+        "statement_citations": true,
+        "abstained": true,
+        "retrieved_documents": true,
+        "case_and_audit_unchanged": true
+      },
+      "passed": true,
+      "response": {
+        "case_revision": 1,
+        "ruleset_id": "custom-308fae357ff84890b2e32db103d578c3",
+        "ruleset_version": "eval-v1",
+        "status": "insufficient_evidence",
+        "statements": [],
+        "hits": [
+          {
+            "id": "6864793ca7c10d08ff63af1a229e2a8fab726ed7c144c61cd03f6d917d87ba86",
+            "source": {
+              "document_id": "57e6d962ae424b7cbadcbfb90c26430c",
+              "document_sha256": "7230addf75497bc07664179e9c97f01339cabaace8a9d4e536d750cdacb07ac8",
+              "quote": "合成驗收文件：寬度規則\n\n\n\n僅供軟體測試，不是真實法規或案件。\n\n本測試情境：比準地寬度 12 公尺，比較標的寬度 8 公尺。\n\n本合成文件規定：該情境的寬度修正率為 2%。\n\n適用期間：2025-01-01 至 2025-12-31。\n\n請以文件版本與原文核對，勿自行補值。",
+              "page": 1,
+              "start": 0,
+              "end": 139,
+              "bbox": null,
+              "page_width": null,
+              "page_height": null,
+              "method": "synthetic-pdf-text"
+            },
+            "document_name": "width-rule.pdf",
+            "ruleset_id": "custom-308fae357ff84890b2e32db103d578c3",
+            "ruleset_version": "eval-v1",
+            "locality": "新北市金山區",
+            "land_use": "商業用地",
+            "valid_from": "2025-01-01",
+            "valid_to": "2025-12-31",
+            "score": 1.028063
+          },
+          {
+            "id": "7307ea2ef84cc78a4cd1dbfe3f009dabab6045e28f521f6fbc21431b6645be0d",
+            "source": {
+              "document_id": "d3c3189a7e344264950bf437d23456bc",
+              "document_sha256": "9181ec846d358bb01bb6ff52c2a198668cb06a8c79413feb0ee11d3617f1046b",
+              "quote": "合成驗收文件：寬度規則\n\n\n\n僅供軟體測試，不是真實法規或案件。\n\n本測試情境：比準地寬度 12 公尺，比較標的寬度 8 公尺。\n\n本合成文件規定：該情境的寬度修正率為 5%。\n\n適用期間：2025-01-01 至 2025-12-31。\n\n請以文件版本與原文核對，勿自行補值。",
+              "page": 1,
+              "start": 0,
+              "end": 139,
+              "bbox": null,
+              "page_width": null,
+              "page_height": null,
+              "method": "synthetic-pdf-text"
+            },
+            "document_name": "width-conflict.pdf",
+            "ruleset_id": "custom-308fae357ff84890b2e32db103d578c3",
+            "ruleset_version": "eval-v1",
+            "locality": "新北市金山區",
+            "land_use": "商業用地",
+            "valid_from": "2025-01-01",
+            "valid_to": "2025-12-31",
+            "score": 1.028063
+          }
+        ],
+        "tool_trace": [
+          {
+            "tool": "search_evidence",
+            "status": "success"
+          }
+        ],
+        "review": null,
+        "message": "Agent 說明為待核對草稿；下方審查結果由確定性引擎產生。"
+      },
+      "tool_results": [
+        {
+          "id": "tooluse_fqKB8Cy0uWM9OrGHDlhquj",
+          "status": "success",
+          "data": {
+            "hits": [
+              {
+                "id": "6864793ca7c10d08ff63af1a229e2a8fab726ed7c144c61cd03f6d917d87ba86",
+                "source": {
+                  "document_id": "57e6d962ae424b7cbadcbfb90c26430c",
+                  "document_sha256": "7230addf75497bc07664179e9c97f01339cabaace8a9d4e536d750cdacb07ac8",
+                  "quote": "合成驗收文件：寬度規則\n\n\n\n僅供軟體測試，不是真實法規或案件。\n\n本測試情境：比準地寬度 12 公尺，比較標的寬度 8 公尺。\n\n本合成文件規定：該情境的寬度修正率為 2%。\n\n適用期間：2025-01-01 至 2025-12-31。\n\n請以文件版本與原文核對，勿自行補值。",
+                  "page": 1,
+                  "start": 0,
+                  "end": 139,
+                  "bbox": null,
+                  "page_width": null,
+                  "page_height": null,
+                  "method": "synthetic-pdf-text"
+                },
+                "document_name": "width-rule.pdf",
+                "ruleset_id": "custom-308fae357ff84890b2e32db103d578c3",
+                "ruleset_version": "eval-v1",
+                "locality": "新北市金山區",
+                "land_use": "商業用地",
+                "valid_from": "2025-01-01",
+                "valid_to": "2025-12-31",
+                "score": 1.028063
+              },
+              {
+                "id": "7307ea2ef84cc78a4cd1dbfe3f009dabab6045e28f521f6fbc21431b6645be0d",
+                "source": {
+                  "document_id": "d3c3189a7e344264950bf437d23456bc",
+                  "document_sha256": "9181ec846d358bb01bb6ff52c2a198668cb06a8c79413feb0ee11d3617f1046b",
+                  "quote": "合成驗收文件：寬度規則\n\n\n\n僅供軟體測試，不是真實法規或案件。\n\n本測試情境：比準地寬度 12 公尺，比較標的寬度 8 公尺。\n\n本合成文件規定：該情境的寬度修正率為 5%。\n\n適用期間：2025-01-01 至 2025-12-31。\n\n請以文件版本與原文核對，勿自行補值。",
+                  "page": 1,
+                  "start": 0,
+                  "end": 139,
+                  "bbox": null,
+                  "page_width": null,
+                  "page_height": null,
+                  "method": "synthetic-pdf-text"
+                },
+                "document_name": "width-conflict.pdf",
+                "ruleset_id": "custom-308fae357ff84890b2e32db103d578c3",
+                "ruleset_version": "eval-v1",
+                "locality": "新北市金山區",
+                "land_use": "商業用地",
+                "valid_from": "2025-01-01",
+                "valid_to": "2025-12-31",
+                "score": 1.028063
+              }
+            ]
+          }
+        }
+      ],
+      "model_turns": 2,
+      "aws_calls": [
+        {
+          "stop_reason": "tool_use",
+          "usage": {
+            "inputTokens": 1021,
+            "outputTokens": 25,
+            "totalTokens": 1046
+          },
+          "tools": [
+            "search_evidence"
+          ],
+          "final_text": ""
+        },
+        {
+          "stop_reason": "end_turn",
+          "usage": {
+            "inputTokens": 1897,
+            "outputTokens": 12,
+            "totalTokens": 1909
+          },
+          "tools": [],
+          "final_text": "{\"statements\":[],\"insufficient_evidence\":true}"
+        }
+      ],
+      "elapsed_seconds": 2.21
+    },
+    {
+      "id": "grounded_answer",
+      "question": "請搜尋寬度合成文件並讀取來源頁面，說明文件記載內容，附上文件引用。不需要計算，也不要把它當成真實估價規定。",
+      "criteria": {
+        "required_tools": true,
+        "expected_status": true,
+        "no_tool_errors": true,
+        "source_scope_and_quotes": true,
+        "statement_citations": true,
+        "answered": true,
+        "retrieved_documents": true,
+        "case_and_audit_unchanged": true
+      },
+      "passed": true,
+      "response": {
+        "case_revision": 1,
+        "ruleset_id": "custom-36cff8937afb4f5aafdb1245d6033942",
+        "ruleset_version": "eval-v1",
+        "status": "draft",
+        "statements": [
+          {
+            "text": "文件記載內容為：\n\n合成驗收文件：寬度規則\n\n僅供軟體測試，不是真實法規或案件。\n\n本測試情境：比準地寬度 12 公尺，比較標的寬度 8 公尺。\n\n本合成文件規定：該情境的寬度修正率為 2%。\n\n適用期間：2025-01-01 至 2025-12-31。\n\n請以文件版本與原文核對，勿自行補值。",
+            "citation_ids": [
+              "b6f411dfc82fa6dd103c88d54a10b3eda2553f092508de6284eb17460751789f"
+            ]
+          }
+        ],
+        "hits": [
+          {
+            "id": "b6f411dfc82fa6dd103c88d54a10b3eda2553f092508de6284eb17460751789f",
+            "source": {
+              "document_id": "7d65f3d1de9b45b1916c736e81d56326",
+              "document_sha256": "7230addf75497bc07664179e9c97f01339cabaace8a9d4e536d750cdacb07ac8",
+              "quote": "合成驗收文件：寬度規則\n\n\n\n僅供軟體測試，不是真實法規或案件。\n\n本測試情境：比準地寬度 12 公尺，比較標的寬度 8 公尺。\n\n本合成文件規定：該情境的寬度修正率為 2%。\n\n適用期間：2025-01-01 至 2025-12-31。\n\n請以文件版本與原文核對，勿自行補值。",
+              "page": 1,
+              "start": 0,
+              "end": 139,
+              "bbox": null,
+              "page_width": null,
+              "page_height": null,
+              "method": "synthetic-pdf-text"
+            },
+            "document_name": "width-rule.pdf",
+            "ruleset_id": "custom-36cff8937afb4f5aafdb1245d6033942",
+            "ruleset_version": "eval-v1",
+            "locality": "新北市金山區",
+            "land_use": "商業用地",
+            "valid_from": "2025-01-01",
+            "valid_to": "2025-12-31",
+            "score": 1.622163
+          }
+        ],
+        "tool_trace": [
+          {
+            "tool": "search_evidence",
+            "status": "success"
+          },
+          {
+            "tool": "read_source_page",
+            "status": "success"
+          }
+        ],
+        "review": null,
+        "message": "Agent 說明為待核對草稿；下方審查結果由確定性引擎產生。"
+      },
+      "tool_results": [
+        {
+          "id": "tooluse_UrIyzKl2A0IVinyDXR2A07",
+          "status": "success",
+          "data": {
+            "hits": [
+              {
+                "id": "b6f411dfc82fa6dd103c88d54a10b3eda2553f092508de6284eb17460751789f",
+                "source": {
+                  "document_id": "7d65f3d1de9b45b1916c736e81d56326",
+                  "document_sha256": "7230addf75497bc07664179e9c97f01339cabaace8a9d4e536d750cdacb07ac8",
+                  "quote": "合成驗收文件：寬度規則\n\n\n\n僅供軟體測試，不是真實法規或案件。\n\n本測試情境：比準地寬度 12 公尺，比較標的寬度 8 公尺。\n\n本合成文件規定：該情境的寬度修正率為 2%。\n\n適用期間：2025-01-01 至 2025-12-31。\n\n請以文件版本與原文核對，勿自行補值。",
+                  "page": 1,
+                  "start": 0,
+                  "end": 139,
+                  "bbox": null,
+                  "page_width": null,
+                  "page_height": null,
+                  "method": "synthetic-pdf-text"
+                },
+                "document_name": "width-rule.pdf",
+                "ruleset_id": "custom-36cff8937afb4f5aafdb1245d6033942",
+                "ruleset_version": "eval-v1",
+                "locality": "新北市金山區",
+                "land_use": "商業用地",
+                "valid_from": "2025-01-01",
+                "valid_to": "2025-12-31",
+                "score": 1.622163
+              }
+            ]
+          }
+        },
+        {
+          "id": "tooluse_O6ae0PM7r8NEnZ7JuuQ9oa",
+          "status": "success",
+          "data": {
+            "hit": {
+              "id": "b6f411dfc82fa6dd103c88d54a10b3eda2553f092508de6284eb17460751789f",
+              "source": {
+                "document_id": "7d65f3d1de9b45b1916c736e81d56326",
+                "document_sha256": "7230addf75497bc07664179e9c97f01339cabaace8a9d4e536d750cdacb07ac8",
+                "quote": "合成驗收文件：寬度規則\n\n\n\n僅供軟體測試，不是真實法規或案件。\n\n本測試情境：比準地寬度 12 公尺，比較標的寬度 8 公尺。\n\n本合成文件規定：該情境的寬度修正率為 2%。\n\n適用期間：2025-01-01 至 2025-12-31。\n\n請以文件版本與原文核對，勿自行補值。",
+                "page": 1,
+                "start": 0,
+                "end": 139,
+                "bbox": null,
+                "page_width": null,
+                "page_height": null,
+                "method": "synthetic-pdf-text"
+              },
+              "document_name": "width-rule.pdf",
+              "ruleset_id": "custom-36cff8937afb4f5aafdb1245d6033942",
+              "ruleset_version": "eval-v1",
+              "locality": "新北市金山區",
+              "land_use": "商業用地",
+              "valid_from": "2025-01-01",
+              "valid_to": "2025-12-31",
+              "score": 1.622163
+            },
+            "page_characters": 139,
+            "next_start": null
+          }
+        }
+      ],
+      "model_turns": 3,
+      "aws_calls": [
+        {
+          "stop_reason": "tool_use",
+          "usage": {
+            "inputTokens": 1019,
+            "outputTokens": 24,
+            "totalTokens": 1043
+          },
+          "tools": [
+            "search_evidence"
+          ],
+          "final_text": ""
+        },
+        {
+          "stop_reason": "tool_use",
+          "usage": {
+            "inputTokens": 1476,
+            "outputTokens": 84,
+            "totalTokens": 1560
+          },
+          "tools": [
+            "read_source_page"
+          ],
+          "final_text": ""
+        },
+        {
+          "stop_reason": "end_turn",
+          "usage": {
+            "inputTokens": 2004,
+            "outputTokens": 203,
+            "totalTokens": 2207
+          },
+          "tools": [],
+          "final_text": "{\"statements\":[{\"text\":\"文件記載內容為：\\n\\n合成驗收文件：寬度規則\\n\\n僅供軟體測試，不是真實法規或案件。\\n\\n本測試情境：比準地寬度 12 公尺，比較標的寬度 8 公尺。\\n\\n本合成文件規定：該情境的寬度修正率為 2%。\\n\\n適用期間：2025-01-01 至 2025-12-31。\\n\\n請以文件版本與原文核對，勿自行補值。\",\"citation_ids\":[\"b6f411dfc82fa6dd103c88d54a10b3eda2553f092508de6284eb17460751789f\"]}],\"insufficient_evidence\":false}"
+        }
+      ],
+      "elapsed_seconds": 5.78
+    }
+  ],
+  "aws_requests": 14,
+  "tokens": 18510,
+  "passed": true,
+  "prompt_version": "landwise-agent-v2",
+  "suite_sha256": "edea8408e950d9787e3ca5c01cdc93118bc9805b43d5f439c137a867c374e609",
+  "manual_review": "Reviewed the grounded answer against width-rule.pdf: the scenario, 2 percent rate, dates, and synthetic-data notice match. Other five answers abstained; numerical results are separately engine-produced.",
+  "prior_runs": [
+    {
+      "phase": "baseline",
+      "prompt_version": "landwise-agent-v1",
+      "passed_count": 4,
+      "total": 6,
+      "aws_requests": 14,
+      "tokens": 18827
+    },
+    {
+      "phase": "diagnostic",
+      "prompt_version": "landwise-agent-v1",
+      "aws_requests": 5,
+      "tokens": 6091,
+      "failures": [
+        {
+          "id": "rule_and_calculation",
+          "error": "ExtractionUnavailable",
+          "final_outputs": [
+            "{\"statements\":[{\"text\":\"審查結果顯示本案「寬度」因素比準地「寬」對比較標的「窄」，查矩陣為 +2%。\",\"citation_ids\":[\"width\"]},{\"text\":\"個別因素合計・基準重算目前因上游資料或基準待確認，暫不判定總修正數。\",\"citation_ids\":[\"norm_individual\"]},{\"text\":\"表 5-2 區域因素總修正數・基準重算因上游資料或基準待確認，暫不判定總修正數。\",\"citation_ids\":[\"norm_regional_detail\"]},{\"text\":\"跨表抄填、調整百分率絕對值加總、估價基準日單價、比較標的試算價格、單一比較標的權重等欄位因總計欄位未確認或計算資料不足，暫不判定。\",\"citation_ids\":[\"cross\",\"absolute\",\"adjusted\",\"trial\",\"weight\"]}],\"insufficient_evidence\":false}"
+          ]
+        },
+        {
+          "id": "missing_data",
+          "error": "ExtractionUnavailable",
+          "final_outputs": [
+            "{\"statements\":[{\"text\":\"依據說明\",\"citation_ids\":[\"deterministic-engine\"]}],\"insufficient_evidence\":false}"
+          ]
+        }
+      ]
+    }
+  ]
+}

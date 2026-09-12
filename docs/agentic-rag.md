@@ -59,3 +59,7 @@ API：`POST /api/cases/{id}/agent-evidence`，body 為 `{"revision":1,"question"
 使用合成來源及 scripted model 驗證：改寫查詢→閱讀文件→查看規則→程式審查→附引用回答、工具白名單、跨來源拒讀、revision 衝突、循環上限、錯誤引用與快取。Converse client 替身另外驗證 toolConfig、toolUseId、toolResult 及 continuation；瀏覽器驗證同意、工具紀錄及獨立審查區塊。
 
 協定依 [AWS client-side tool use](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use-client-side.html)。實際區域模型相容性及回答品質仍需使用合成資料做雲端 smoke 驗證；未部署受管 Bedrock Agents，也未導入 GraphRAG。
+
+## 小型 AWS 驗收
+
+已完成六題合成實測，包含 get_rule 與 review_case；本次 prompt 升版避免把檢查 ID 當成文件引用。重跑指令、初始失敗及最終結果見 [Agent 驗收](agent-evaluation.md)。

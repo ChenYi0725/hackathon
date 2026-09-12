@@ -1,0 +1,85 @@
+[
+  {
+    "id": "rule_and_calculation",
+    "question": "請先用 get_rule 查看 width 規則，再用 review_case 審查本案。計算由程式完成，不要自行運算；若沒有文件引用，仍保留程式審查結果。",
+    "documents": [],
+    "tools": [
+      "get_rule",
+      "review_case"
+    ],
+    "review": true,
+    "expected_individual": 2,
+    "expected_width_status": "pass",
+    "expected_status": "insufficient_evidence"
+  },
+  {
+    "id": "no_source",
+    "question": "請搜尋 PDF 文件的寬度規定。找不到原始文件就回報依據不足，不得拿程式規則冒充原文。",
+    "documents": [],
+    "tools": [
+      "search_evidence"
+    ],
+    "empty_hits": true,
+    "expected_status": "insufficient_evidence"
+  },
+  {
+    "id": "wrong_version",
+    "question": "請搜尋適用本案的寬度原始文件，只能使用案件綁定版本；沒有適用版本就回報依據不足。",
+    "documents": [
+      {
+        "file": "width-rule.pdf",
+        "binding": "other-version"
+      }
+    ],
+    "tools": [
+      "search_evidence"
+    ],
+    "empty_hits": true,
+    "expected_status": "insufficient_evidence"
+  },
+  {
+    "id": "missing_data",
+    "question": "請用 review_case 檢查案件缺值，資料不足不能補零或宣告通過。請保留程式審查結果。",
+    "documents": [],
+    "missing": true,
+    "tools": [
+      "review_case"
+    ],
+    "review": true,
+    "expected_individual": null,
+    "expected_width_status": "missing",
+    "expected_status": "insufficient_evidence"
+  },
+  {
+    "id": "conflicting_sources",
+    "question": "請搜尋並核對寬度的合成文件。兩份文件對同一修正率若互相矛盾，應回報依據不足，不可挑一份當成答案。",
+    "documents": [
+      {
+        "file": "width-rule.pdf"
+      },
+      {
+        "file": "width-conflict.pdf"
+      }
+    ],
+    "tools": [
+      "search_evidence"
+    ],
+    "min_documents": 2,
+    "expected_status": "insufficient_evidence"
+  },
+  {
+    "id": "grounded_answer",
+    "question": "請搜尋寬度合成文件並讀取來源頁面，說明文件記載內容，附上文件引用。不需要計算，也不要把它當成真實估價規定。",
+    "documents": [
+      {
+        "file": "width-rule.pdf"
+      }
+    ],
+    "tools": [
+      "search_evidence",
+      "read_source_page"
+    ],
+    "min_documents": 1,
+    "expected_status": "draft"
+  }
+]

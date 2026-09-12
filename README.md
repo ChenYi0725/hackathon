@@ -290,6 +290,10 @@ npm run test:e2e
 
 已安裝 Google Chrome 時，可改用 `PLAYWRIGHT_CHANNEL=chrome npm run test:e2e`。
 
+### Agent 工具與回答驗收
+
+可用 `.venv/bin/python -m scripts.evaluate_agent --bedrock --profile landwise-hackathon` 跑六題合成驗收；省略 --bedrock 僅檢查測資，不呼叫 AWS。包括規則／計算工具、缺來源、錯版本、缺值與矛盾來源；[執行方式與實測結果](docs/agent-evaluation.md)。
+
 ## 目前功能邊界
 
 目前應用流程仍是金山商業用地、單一比較標的範例。樹林普通住宅已具備獨立的純 domain
