@@ -45,6 +45,73 @@ flowchart TB
 
 上傳先走 PaddleOCR，再保存原始 PDF、辨識文字與待確認案件。AI 抽取由使用者另外啟動，預覽不修改案件；套用後仍須人工核對，估價判定由領域規則引擎執行。目前保留單一比較標的，尚未部署 AWS 主機。
 
+## 審查流程與競賽限制
+
+以下為目前已實作的主要操作路徑。DDD 的 application 層編排流程，infrastructure 層處理 OCR、AWS 與儲存，domain 層負責確定性計算；HTTP 與畫面呈現結果。
+
+### PDF 上傳到審查匯出
+
+```mermaid
+flowchart TB
+    UPLOAD["瀏覽器上傳 PDF"] --> HTTP["interfaces：FastAPI 接收文件<br/>檔案上限 20 MB"]
+    HTTP --> OCR["infrastructure：PDFium 轉圖、PaddleOCR CPU 辨識<br/>最多 200 頁，限制像素與執行時間"]
+    OCR -->|成功| DRAFT["application：版型解析與待確認草稿<br/>本機保存原始 PDF、OCR 文字、座標及案件"]
+    OCR -->|失敗或逾時| ERROR["顯示錯誤<br/>檢查或拆分文件後重新上傳"]
+    DRAFT --> OPTIONAL{"需要 AWS AI 整理欄位？"}
+    OPTIONAL -->|否| HUMAN["人工核對原文、適用基準與欄位<br/>確認或修正資料"]
+    OPTIONAL -->|是| AI["執行下方 AI 抽取子流程<br/>取得草稿或錯誤提示"]
+    AI --> HUMAN
+    HUMAN --> SAVE["application：檢查 revision<br/>repository：保存案件與修訂快照"]
+    SAVE --> RULES["domain：Decimal 計算與規則審查<br/>級距、矩陣、加總及跨表一致性"]
+    RULES --> RESULT["通過／疑似錯誤／待確認／資料不足"]
+    RESULT -->|繼續修正| HUMAN
+    RESULT --> EXPORT["匯出 JSON、CSV、HTML 報告與整理書表<br/>HTML 可由瀏覽器列印或另存 PDF"]
+```
+
+載入案件時也會計算目前審查狀態；未確認資料不會自動通過。儲存時若 revision 已過期，回傳衝突並要求重新載入。尚有疑點的案件仍可匯出，報告會保留待確認狀態。**後端直接產生 PDF、原書表套印、多比較標的及 GraphRAG 仍列於 [TODO](docs/TODO.md)，未包含在已完成流程中。**
+
+### AWS AI 抽取子流程
+
+```mermaid
+flowchart TB
+    START["使用者啟動 AWS AI 抽取<br/>需已啟用 Bedrock，並先儲存畫面變更"]
+    START --> POLICY{"已確認整份文件符合競賽上雲規範？"}
+    POLICY -->|否或尚未確認| LOCAL["不呼叫 AWS<br/>繼續本機 OCR 與人工核對"]
+    POLICY -->|是| READ["application：核對案件 revision<br/>載入 OCR 文字與案件指定的基準版本"]
+    READ --> CACHE{"相同輸入的 AI 快取存在？"}
+    CACHE -->|是，使用已驗證結果| REVISION
+    CACHE -->|否| GATE["共用鎖與持久化節流<br/>每次嘗試間隔至少 1.1 秒<br/>適用錯誤最多嘗試 3 次，SDK 自動重試關閉"]
+
+    subgraph AWS["AWS：目前使用 us-west-2"]
+        MODEL["Bedrock Converse<br/>qwen.qwen3-32b-v1:0<br/>只整理欄位草稿，不執行估價計算"]
+    end
+
+    GATE -->|OCR 文字與因素定義| MODEL
+    MODEL -->|欄位與來源行號| VERIFY["本機驗證完整 JSON、因素 ID、原文引用及數值<br/>只保留可接受的候選並寫入快取"]
+    MODEL -->|呼叫失敗或重試耗盡| FAIL["顯示錯誤，原案件保持不變<br/>重新載入、稍後重試或人工核對"]
+    VERIFY -->|無有效草稿或輸出不完整| FAIL
+    VERIFY -->|有有效草稿| REVISION{"抽取前後案件 revision 仍一致？"}
+    REVISION -->|否| FAIL
+    REVISION -->|是| PREVIEW["回傳未確認草稿，預覽不寫回案件<br/>使用者勾選套用後，回到人工核對與儲存"]
+```
+
+引用與數值存在性檢查不代表模型已選對欄位或比較方向。上雲確認是使用者的資料適用性確認，程式目前沒有自動辨識所有受限資料；將 PDF 轉成 OCR 文字不會解除原資料的限制。雲端整合測試只使用合成文件。
+
+### 規範如何反映在流程中
+
+依 `REFERENCE_DATA_DIR` 下的 `黑客松競賽環境規範與限制_20260722.pdf` 第 1–2 頁，對照目前程式如下；若賽期間公告有調整，以主辦最新規範與實際環境為準。
+
+| 競賽規範 | 目前流程／實作 |
+| --- | --- |
+| 禁止將個資、財務資訊等受限資料引入 AWS | 呼叫前確認整份文件適用性；未確認時保留本機處理路徑，測試使用合成資料 |
+| Bedrock 每秒 1 個請求以下 | 同一主機共用鎖、持久化節流及至少 1.1 秒間隔；重試同樣經過節流，命中快取不呼叫模型 |
+| 指定主要部署區域為 `us-east-1`、`us-west-2` | 程式只接受這兩區，預設 `us-west-2`；本版使用區域內模型 ID，拒絕跨區 inference profile |
+| 僅使用必要模型與資源，不建議大規模訓練 | 本機 CPU 執行 PaddleOCR，需要 AI 時才呼叫設定的模型；目前沒有模型訓練流程 |
+| GitHub 不得包含機密憑證 | `.env` 被 Git 忽略，保留不含金鑰的 `.env.example`；AWS SDK 從 profile、環境或 role 讀取憑證 |
+| S3 不可公開、EC2 Security Group 不可完全開放、RDS／EMR 不可公開存取 | 目前沒有部署這些雲端資源；未來部署須依規範及支援服務清單另行配置 |
+
+本機節流只涵蓋共用相同資料目錄的應用程序，不會限制同帳號其他工具或其他主機的模型請求；團隊使用 AWS CLI 或新增服務時仍須共同遵守帳號的請求限制。
+
 ## 快速開始（macOS / Linux，Python 3.12）
 
 ```bash
