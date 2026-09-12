@@ -22,6 +22,7 @@ flowchart TB
         subgraph INFRA["基礎設施層 infrastructure"]
             OCR["PDF adapter<br/>PDFium 轉圖 → PaddleOCR<br/>CPU 子程序辨識"]
             AI["AI adapter<br/>Bedrock Converse<br/>快取、節流與有限重試"]
+            RAG["RAG adapters<br/>文字檢索與 Bedrock 引用說明"]
             REPO["Repository adapter<br/>SQLite 與本機檔案存取"]
         end
 
@@ -39,6 +40,9 @@ flowchart TB
     APP -->|PdfReader| OCR
     APP -->|FieldExtractor| AI
     APP -->|ReviewRepository| REPO
+    APP -->|EvidenceRetriever／EvidenceAnswerer| RAG
+    RAG --> REPO
+    RAG -->|確認可上雲後：問題與原文片段| MODEL
     REPO --> DB
     REPO --> FILES
     AI -->|確認可上雲後：OCR 文字與因素定義| MODEL
@@ -46,6 +50,12 @@ flowchart TB
 ```
 
 上傳先走 PaddleOCR，再保存原始 PDF、辨識文字與待確認案件。AI 抽取由使用者另外啟動，預覽不修改案件；套用後仍須人工核對，估價判定由領域規則引擎執行。目前保留單一比較標的，尚未部署 AWS 主機。
+
+## 基準文件 RAG
+
+案件內按「依據問答」，先加入綁定該基準版本及適用期間的 PDF，再查找來源或請 Bedrock 生成附引用說明。本機檢索不需要 AWS；生成前須確認問題與來源可上雲。找不到符合案件版本、地區、用地及日期的依據時不生成答案。
+
+目前使用中文文字檢索基線，不使用向量或 GraphRAG。引用包含文件、頁碼、原文與版本；AI 不修改案件、不執行估價運算。完整操作、API 與限制見 [RAG 文件](docs/rag.md)。
 
 ## 審查流程與競賽限制
 

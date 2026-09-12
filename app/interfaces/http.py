@@ -5,7 +5,7 @@ from urllib.parse import quote
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, StrictBool
+from pydantic import BaseModel, ConfigDict, StrictBool, Field
 from starlette.concurrency import run_in_threadpool
 from app.application.ports import ExtractionUnavailable, RevisionConflict
 from app.bootstrap import build_service, sample_document
@@ -24,11 +24,17 @@ class AiRequest(RevisionRequest):
     cloud_data_approved: StrictBool = False
 
 
-def create_app(settings=None, *, pdf=None, ai=None):
+class RagRequest(AiRequest):
+    question: str = Field(min_length=1, max_length=1000)
+    generate: StrictBool = False
+    rule_ids: list[str] = Field(default_factory=list, max_length=100)
+
+
+def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=None):
     @asynccontextmanager
     async def lifespan(app):
         app.state.settings = settings or Settings()
-        app.state.service = build_service(app.state.settings, pdf=pdf, ai=ai)
+        app.state.service = build_service(app.state.settings, pdf=pdf, ai=ai, retriever=retriever, answerer=answerer)
         if os.getenv('SEED_EXAMPLES', 'true').lower() == 'true':
             app.state.service.seed_examples(sample_document(app.state.settings))
         yield
@@ -139,6 +145,27 @@ def create_app(settings=None, *, pdf=None, ai=None):
     @app.post('/api/cases/{cid}/ai')
     def extract_ai(cid: str, body: AiRequest):
         return service().extract_ai(cid, body.revision, body.cloud_data_approved)
+
+    @app.post('/api/cases/{cid}/evidence')
+    def evidence(cid: str, body: RagRequest):
+        return service().rag.query(cid, body.revision, body.question, generate=body.generate,
+                                   cloud_data_approved=body.cloud_data_approved, rule_ids=body.rule_ids)
+
+    @app.get('/api/rulesets/{rid}/evidence-documents')
+    def evidence_documents(rid: str):
+        return service().repository.list_evidence_documents(rid)
+
+    @app.post('/api/rulesets/{rid}/evidence-documents')
+    async def upload_evidence(rid: str, request: Request, valid_from: str, valid_to: str, name: str = '基準.pdf'):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > 20 * 1024 * 1024:
+                raise HTTPException(413, 'PDF 上限 20 MB。')
+        try:
+            return await run_in_threadpool(service().rag.upload_source, rid, bytes(data), name, valid_from, valid_to)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
 
     @app.get('/api/rulesets')
     def rulesets():

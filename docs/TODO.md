@@ -6,20 +6,21 @@
 
 命題要求依個案的評價基準核對級距、修正率、加總與跨表填值，並輔助完成書表。`REFERENCE_DATA_DIR` 下的「題目.pdf 的副本.pdf」第 5、6 頁包含樹林普通住宅用地及三個比較標的。
 
-目前已完成：PaddleOCR 上傳、Bedrock 欄位草稿、DDD 分層、SQLite 修訂紀錄及金山商業用地的單一比較標的審查。計算內部使用 `Decimal`，但資料模型仍有 `float`；匯出目前是 JSON、CSV 與可列印 HTML。
+目前已完成：具版本與期間篩選的 v1 文字 RAG（本機查找＋Bedrock 引用說明）、PaddleOCR 上傳、Bedrock 欄位草稿、DDD 分層、SQLite 修訂紀錄及金山商業用地的單一比較標的審查。計算內部使用 `Decimal`，但資料模型仍有 `float`；匯出目前是 JSON、CSV 與可列印 HTML。
 
-尚未完成：住宅規則與多比較標的、完整計算追溯、後端直接生成 PDF、依據檢索及 GraphRAG。現況詳見 [架構文件](architecture.md)。
+尚未完成：住宅規則與多比較標的、完整計算追溯、後端直接生成 PDF、v2 檢索整合及 GraphRAG。現況詳見 [架構文件](architecture.md)。
 
 ## 目標介面
 
-保留五個技術 port 與一個領域計算服務，仍部署為同一個後端。
+保留原規劃五個技術 port 與一個領域計算服務；RAG 另增加獨立的 `EvidenceAnswerer` port，仍部署為同一個後端。
 
 | 名稱 | 所屬與責任 | 現況 |
 | --- | --- | --- |
 | `PdfReader` | application port；取得 OCR 文字、頁碼、座標與信心值 | 已有，Paddle adapter |
 | `FieldExtractor` | application port；整理欄位草稿與引用 | 已有，Bedrock adapter |
 | `ReviewRepository` | application port；保存案件、基準、來源、版本與修訂 | 已有，SQLite adapter |
-| `EvidenceRetriever` | application port；依案件適用範圍及版本取得來源依據 | 規劃中 |
+| `EvidenceRetriever` | application port；依案件適用範圍及版本取得來源依據 | v1 文字檢索已接線，v2 待整合 |
+| `EvidenceAnswerer` | application port；依檢索片段生成附引用的說明草稿 | v1 Bedrock adapter；不修改案件 |
 | `PdfRenderer` | application port；將案件快照及計算結果輸出 PDF | 規劃中 |
 | `ValuationCalculator` | domain service；查表、公式、加總、加權及一致性檢查 | 由現有 `engine.py` 擴充，名稱與型別待 DDD-00 定案 |
 
@@ -50,7 +51,7 @@
 | DDD-04 | P0 | ports 與案件用例整合 | Application | DDD-02、DDD-03 | 待認領 | — |
 | DDD-05 | P0 | PDF 報告與原書表產製 | Infrastructure | DDD-04 | 待認領 | — |
 | DDD-06 | P0 | 多標的核對與 PDF 下載介面 | Interfaces／UI | DDD-04、DDD-05 | 待認領 | — |
-| DDD-07 | P1 | 具版本篩選及引用的依據檢索 | Infrastructure | DDD-04 | 待認領 | — |
+| DDD-07 | P1 | 具版本篩選及引用的依據檢索 | Infrastructure | DDD-04（v2）；本次先接 v1 | 待審查 | Codex／[PR #5](https://github.com/ChenYi0725/hackathon/pull/5) |
 | DDD-08 | P0 | 題目完整流程與回歸驗收 | Integration | DDD-05、DDD-06 | 待認領 | — |
 | DDD-09 | P2 | GraphRAG 對照評估 | Infrastructure＋Integration | DDD-07、DDD-08 | 待認領 | — |
 
@@ -110,6 +111,8 @@
 - 保留 revision 衝突回應及既有匯出行為，加入 API 與瀏覽器回歸；PDF 錯誤須顯示可處理訊息。
 
 ### DDD-07：來源檢索
+
+依使用者優先順序，先交付可獨立使用的 v1 RAG 切片。新增來源 PDF 上傳、期間綁定、本機中文文字檢索、引用與 Bedrock 說明。v2 多標的契約仍依賴 DDD-04，不以本次完成整體 v2 整合。行為與限制見 [RAG 文件](rag.md)。
 
 - 在 `EvidenceRetriever` 後實作基準 ID／版本精確查找與文件檢索；以地區、用地類別、適用時間及案件指定版本篩選，避免最相似但不適用的規則。
 - 回傳文件 ID／版本、頁碼、原文與可用座標，讓說明能追溯；檢索結果不直接修改案件基準或可執行公式。

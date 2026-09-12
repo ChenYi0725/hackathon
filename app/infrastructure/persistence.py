@@ -1,4 +1,5 @@
 """SQLite and local-file adapter for the valuation review bounded context."""
+import hashlib
 import json
 import sqlite3
 import uuid
@@ -38,6 +39,13 @@ class SQLiteReviewRepository:
                 CREATE TABLE IF NOT EXISTS documents (id TEXT PRIMARY KEY, name TEXT NOT NULL, path TEXT NOT NULL, pages TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, case_id TEXT NOT NULL, action TEXT NOT NULL, at TEXT NOT NULL, snapshot TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS extraction_cache (key TEXT PRIMARY KEY, body TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS evidence_documents (
+                    document_id TEXT PRIMARY KEY, sha256 TEXT NOT NULL,
+                    ruleset_id TEXT NOT NULL, ruleset_version TEXT NOT NULL,
+                    locality TEXT NOT NULL, land_use TEXT NOT NULL,
+                    valid_from TEXT NOT NULL, valid_to TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS evidence_scope ON evidence_documents
+                    (ruleset_id, ruleset_version, locality, land_use, valid_from, valid_to);
                 CREATE TABLE IF NOT EXISTS request_gate (id TEXT PRIMARY KEY, next_at REAL NOT NULL);
             ''')
             rules = default_rules()
@@ -130,3 +138,39 @@ class SQLiteReviewRepository:
     def cache_put(self, key, value):
         with self.db() as c:
             c.execute('INSERT OR REPLACE INTO extraction_cache VALUES (?,?)', (key, json.dumps(value, ensure_ascii=False)))
+
+
+    def save_evidence_document(self, data, name, pages, ruleset, valid_from, valid_to):
+        document_id = uuid.uuid4().hex
+        digest = hashlib.sha256(data).hexdigest()
+        path = self.data_dir / 'uploads' / (document_id + '.pdf')
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        try:
+            with self.db() as c:
+                c.execute('INSERT INTO documents VALUES (?,?,?,?)',
+                          (document_id, name, str(path.resolve()), json.dumps(pages, ensure_ascii=False)))
+                c.execute('INSERT INTO evidence_documents VALUES (?,?,?,?,?,?,?,?)',
+                          (document_id, digest, ruleset['id'], ruleset['version'], ruleset['locality'],
+                           ruleset['land_use'], valid_from.isoformat(), valid_to.isoformat()))
+        except Exception:
+            path.unlink(missing_ok=True)
+            raise
+        return dict(document_id=document_id, sha256=digest, name=name, ruleset_id=ruleset['id'],
+                    ruleset_version=ruleset['version'], valid_from=valid_from.isoformat(), valid_to=valid_to.isoformat())
+
+    def list_evidence_documents(self, ruleset_id):
+        self.get_rules(ruleset_id)
+        with self.db() as c:
+            return [dict(r) for r in c.execute("""SELECT e.*, d.name FROM evidence_documents e
+                JOIN documents d ON d.id=e.document_id WHERE e.ruleset_id=? ORDER BY e.document_id""", (ruleset_id,))]
+
+    def evidence_sources(self, query):
+        with self.db() as c:
+            rows = c.execute("""SELECT e.*, d.name, d.pages FROM evidence_documents e
+                JOIN documents d ON d.id=e.document_id
+                WHERE e.ruleset_id=? AND e.ruleset_version=? AND e.locality=? AND e.land_use=?
+                AND e.valid_from<=? AND e.valid_to>=? ORDER BY e.document_id""",
+                (query.ruleset_id, query.ruleset_version, query.locality, query.land_use,
+                 query.valuation_date.isoformat(), query.valuation_date.isoformat())).fetchall()
+        return [dict(r, pages=json.loads(r['pages'])) for r in rows]

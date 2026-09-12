@@ -64,3 +64,9 @@ bootstrap.py 負責選擇具體 adapter 並注入。
 目前採單機 SQLite 與共用鎖檔，沒有分散式佇列。HTTP 呼叫期間等待 OCR 或 AI，介面顯示處理中；程序重啟後使用者需重新提交，成功快取可重用。
 
 AWS 主機的對外存取、登入、備份與多機協調尚未在本次部署。上雲前必須遵守競賽資料規範；不得因題目由主辦提供，就推定其中價格資料允許上雲。
+
+## 基準文件 RAG
+
+`application/rag.py` 編排上傳來源、唯讀檢索與引用說明；`rag_contracts.py` 定義 DTO。`LocalEvidenceRetriever` 從 repository 精確篩選案件基準 ID／版本、地區、用地與期間後，以中文雙字詞 BM25 排名。`BedrockEvidenceAnswerer` 共用既有 transport、lock 與 gate，只生成可引用本次 hits 的說明。
+
+新增 `evidence_documents` 表與索引，原始 PDF 保存在原有 documents／uploads；案件與 audit 不變。`static/rag.js` 提供來源上傳、查找與說明視窗。查詢不更改基準或確認狀態；v2 整合與 GraphRAG 仍未實作。詳見 [RAG 操作與限制](rag.md)及 [共用契約](contracts.md)。

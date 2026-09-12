@@ -208,3 +208,48 @@ test('saving locks edits and a failed save preserves the pending draft', async (
   await expect(input).toHaveValue('9');
   await expect(confirmation).not.toBeChecked();
 });
+
+
+test('RAG uploads a scoped source, retrieves locally and requires cloud consent', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/');
+  await page.getByRole('button',{name:'建立錯誤示範'}).click();
+  await page.getByRole('button',{name:'依據問答',exact:true}).click();
+  await expect(page.getByRole('dialog')).toContainText('尚未加入來源');
+  await page.locator('#rag-question').fill('寬度');
+  await page.locator('#rag-search').click();
+  await expect(page.locator('#rag-results')).toContainText('找不到符合版本');
+  await page.getByText('管理這個基準版本的來源 PDF',{exact:true}).click();
+  await page.locator('#rag-from').fill('2025-01-01');
+  await page.locator('#rag-to').fill('2025-12-31');
+  await page.locator('#rag-file').setInputFiles(path.join(__dirname,'..','tests','fixtures','synthetic-scanned.pdf'));
+  await page.locator('#rag-upload').click();
+  await expect(page.locator('#rag-results')).toContainText('來源已加入',{timeout:110000});
+  const [response] = await Promise.all([
+    page.waitForResponse(r=>r.url().endsWith('/evidence')&&r.request().method()==='POST'),
+    page.locator('#rag-search').click(),
+  ]);
+  const result=await response.json();
+  expect(result.hits.length).toBeGreaterThan(0);
+  await expect(page.locator('#rag-results')).toContainText('寬度');
+  await expect(page.locator('#rag-results a').first()).toHaveAttribute('href',/\/api\/documents\/.+\/file#page=1/);
+  let calls=0;
+  await page.route('**/api/cases/*/evidence',async route=>{
+    if(!route.request().postDataJSON().generate)return route.continue();
+    calls++;
+    expect(route.request().postDataJSON().cloud_data_approved).toBe(true);
+    await route.fulfill({json:{...result,status:'draft',statements:[{text:'合成說明 <script>window.ragInjected=true</script>',citation_ids:[result.hits[0].id]}]}});
+  });
+  await page.locator('#rag-answer').click();
+  await expect(page.locator('#rag-results')).toContainText('請先確認');
+  expect(calls).toBe(0);
+  await page.locator('#rag-consent').check();
+  await page.locator('#rag-answer').click();
+  await expect(page.locator('#rag-results')).toContainText('合成說明');
+  await expect(page.locator('#rag-results a').first()).toHaveAttribute('href','#rag-cite-'+result.hits[0].id);
+  expect(await page.evaluate(()=>window.ragInjected)).toBeUndefined();
+  expect(calls).toBe(1);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/rag-mobile.png',fullPage:true});
+});

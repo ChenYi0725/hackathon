@@ -100,16 +100,20 @@ class BedrockFieldExtractor:
             raise ExtractionUnavailable('其他抽取工作正在進行，請稍後重試。') from None
 
     def _request(self, content, ruleset):
-        from botocore.exceptions import BotoCoreError, ClientError
         rules = [{k: r[k] for k in ('id', 'name', 'scope', 'unit')} for r in ruleset['rules']]
+        return self.converse(SYSTEM_PROMPT, json.dumps(rules, ensure_ascii=False) + '\n文件：\n' + content, 4096)
+
+    def converse(self, system, content, max_tokens):
+        """Caller must hold bedrock.lock across all attempts and cache writes."""
+        from botocore.exceptions import BotoCoreError, ClientError
         for attempt in range(3):
             self.gate.wait()
             try:
                 return self._client().converse(
                     modelId=self.settings.model_id,
-                    system=[{'text': SYSTEM_PROMPT}],
-                    messages=[{'role': 'user', 'content': [{'text': json.dumps(rules, ensure_ascii=False) + '\n文件：\n' + content}]}],
-                    inferenceConfig={'maxTokens': 4096, 'temperature': 0},
+                    system=[{'text': system}],
+                    messages=[{'role': 'user', 'content': [{'text': content}]}],
+                    inferenceConfig={'maxTokens': max_tokens, 'temperature': 0},
                 )
             except ClientError as exc:
                 code = exc.response.get('Error', {}).get('Code', '')
