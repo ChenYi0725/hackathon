@@ -333,3 +333,66 @@ test('Agent mode shows function trace and separate deterministic review', async 
   expect(calls).toBe(1);
   await page.screenshot({path:'test-results/agentic-rag.png',fullPage:true});
 });
+
+test('case review visualization presents existing review output without recalculation', async ({ page }) => {
+  await page.goto('/');
+  const [response] = await Promise.all([
+    page.waitForResponse(result => result.url().endsWith('/api/samples/errors')),
+    page.getByRole('button',{name:'建立錯誤示範'}).click(),
+  ]);
+  const payload = await response.json();
+  const ruleset = (await (await page.request.get('/api/rulesets')).json())
+    .find(rule => rule.id === payload.case.ruleset_id);
+  const total = Object.values(payload.review.counts).reduce((sum, count) => sum + count, 0);
+
+  await expect(page.getByRole('heading',{name:'本案件未通過',exact:true})).toBeVisible();
+  await expect(page.locator('.review-summary-item.total strong')).toHaveText(String(total));
+  await expect(page.locator('.review-summary-item.error strong')).toHaveText(String(payload.review.counts.error));
+  await expect(page.locator('.factor-review-row')).toHaveCount(ruleset.rules.length);
+  await expect(page.getByRole('heading',{name:'案件區域',exact:true})).toBeVisible();
+  await expect(page.locator('.map-unavailable')).toContainText('目前尚無座標與地價區段邊界資料');
+  await expect(page.locator('.map-unavailable')).toContainText('目前無周邊設施位置資料');
+  await page.screenshot({path:'test-results/review-visualization-desktop.png'});
+
+  const roadRow = page.locator('.factor-review-row').filter({hasText:'面前道路寬度'}).first();
+  await roadRow.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog')).toContainText('系統修正率');
+  await page.getByRole('button',{name:'查看修正矩陣',exact:true}).click();
+  await expect(page.locator('.matrix td.selected-cell')).toHaveCount(1);
+  await page.getByRole('button',{name:'關閉',exact:true}).click();
+
+  const roadIssue = page.locator('.review-issue').filter({hasText:'面前道路寬度'}).first();
+  await roadIssue.getByRole('button',{name:'查看詳情'}).click();
+  await expect(roadRow).toBeFocused();
+  await page.screenshot({path:'test-results/review-visualization.png',fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({path:'test-results/review-visualization-mobile.png'});
+});
+
+test('empty factor review presents one guided state and collapses pending factors', async ({ page }) => {
+  await page.goto('/');
+  const [response] = await Promise.all([
+    page.waitForResponse(result => result.url().endsWith('/api/cases') && result.request().method() === 'POST'),
+    page.getByRole('button',{name:'建立案件',exact:true}).click(),
+  ]);
+  const payload = await response.json();
+  const ruleset = (await (await page.request.get('/api/rulesets')).json())
+    .find(rule => rule.id === payload.case.ruleset_id);
+
+  await expect(page.getByRole('heading',{name:'目前只有評價規則，尚未有案件數值',exact:true})).toBeVisible();
+  await expect(page.locator('.factor-review-section')).not.toContainText('目前無資料');
+  await expect(page.locator('.factor-review-row')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'上傳題目',exact:true})).toBeVisible();
+  await expect(page.locator('.missing-factor-disclosure > summary')).toContainText(`${ruleset.rules.length} 項因素待填`);
+
+  await page.locator('.missing-factor-disclosure > summary').click();
+  await expect(page.locator('.missing-factor-tags button, .missing-factor-tags > span')).toHaveCount(ruleset.rules.length);
+  await page.screenshot({path:'test-results/review-empty-state.png',fullPage:true});
+
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/review-empty-state-mobile.png'});
+});
