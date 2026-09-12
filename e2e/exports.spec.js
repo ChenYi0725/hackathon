@@ -7,7 +7,8 @@ test('Excel downloads and errors on desktop and mobile', async ({ page }) => {
   await page.getByRole('button', { name: '匯出成果' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('link', { name: '審查報告 · HTML' })).toBeVisible();
-  await expect(dialog.getByText(/PDF/)).toHaveCount(0);
+  await expect(dialog.locator('[data-action="download-export"][data-id$="-pdf"]')).toHaveCount(0);
+  await expect(dialog.getByRole('link', { name: '下載 PDF 審查摘要 ↗', exact: true })).toBeVisible();
   for (const kind of ['table3-xlsx', 'table4-xlsx', 'table5-xlsx']) {
     const pending = page.waitForEvent('download');
     await dialog.locator(`[data-id="${kind}"]`).click();

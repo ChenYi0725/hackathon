@@ -11,6 +11,8 @@ def csv_safe(value):
 
 
 def export_case(case, result, rules, kind: str, generated_at: str):
+    if kind == 'forms' and case.additional_comparisons:
+        raise ValueError('多比較標的請使用「下載已確認勘查資料 Excel」或完整審查包，避免只輸出第一筆。')
     filename=f'review-{case.case_number or case.id}'
     headers={'Content-Disposition':"attachment; filename*=UTF-8''"+quote(filename)}
     if kind=='json':

@@ -1,6 +1,7 @@
 """HTTP boundary: validation, status codes and representation only."""
 import mimetypes
 import os
+import hmac
 from contextlib import asynccontextmanager
 from urllib.parse import quote
 from fastapi import FastAPI, HTTPException, Request
@@ -39,6 +40,34 @@ class RagRequest(AiRequest):
     rule_ids: list[str] = Field(default_factory=list, max_length=100)
 
 
+class CellRequest(RevisionRequest):
+    document_id: str
+    sheet: str
+    cell: str
+    target: str
+
+
+class DecisionRequest(RevisionRequest):
+    run_id: str
+    check_id: str
+    decision: str
+    reason: str = Field(min_length=1, max_length=3000)
+    operation_id: str = Field(min_length=8, max_length=100)
+
+
+class ExternalRequest(RevisionRequest):
+    factor_id: str
+    query: dict
+
+
+class PublishRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=3000)
+    source_confirmed: StrictBool
+    matrix_confirmed: StrictBool
+    valid_from: str
+    valid_to: str
+
+
 class RulesetConfirmationRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     document_id: str = Field(min_length=1, max_length=100)
@@ -74,6 +103,17 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
 
     @app.middleware('http')
     async def local_mutations(request, call_next):
+        # Local single-operator workspace. Knowing a case ID grants no network access.
+        # For a remote private deployment require a server-side access token on ALL resources.
+        token = os.getenv('APP_ACCESS_TOKEN', '')
+        if token:
+            supplied = request.headers.get('authorization', '').removeprefix('Bearer ')
+            if request.url.path != '/api/health' and not hmac.compare_digest(supplied, token):
+                return Response('Unauthorized', status_code=401)
+        elif request.client and request.client.host not in ('127.0.0.1', '::1', 'testclient'):
+            return Response('本工作台限本機操作；遠端請設定存取認證。', status_code=403)
+        if request.url.hostname not in ('127.0.0.1', 'localhost', '::1', 'testserver') and not token:
+            return Response('Invalid host', status_code=403)
         if request.method not in ('GET', 'HEAD', 'OPTIONS'):
             origin = request.headers.get('origin')
             if origin and origin != f'{request.url.scheme}://{request.headers.get("host")}':
@@ -81,6 +121,8 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
         response = await call_next(request)
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['Referrer-Policy'] = 'same-origin'
+        if request.url.path.startswith('/api/'):
+            response.headers['Cache-Control'] = 'no-store'
         return response
 
     @app.exception_handler(KeyError)
@@ -190,7 +232,8 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
     @app.get('/api/documents/{docid}/file')
     def file(docid: str):
         doc = service().repository.get_document(docid)
-        return FileResponse(doc['path'], media_type='application/pdf', headers={'Content-Disposition': "inline; filename*=UTF-8''" + quote(doc['name'])})
+        media = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if any(p.get('method') == 'xlsx' for p in doc['pages']) else 'application/pdf'
+        return FileResponse(doc['path'], media_type=media, headers={'Content-Disposition': "inline; filename*=UTF-8''" + quote(doc['name'])})
 
     @app.get('/api/reference/{kind}')
     def reference(kind: str):
@@ -238,6 +281,44 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
     def create_ruleset(body: dict):
         return service().create_ruleset(body)
 
+    @app.post('/api/rulesets/{rid}/publish')
+    def publish_ruleset(rid: str, body: PublishRequest):
+        return service().publish_ruleset(rid, **body.model_dump())
+
+    @app.post('/api/cases/{cid}/review')
+    def run_review(cid: str, body: RevisionRequest):
+        return service().workflow.run(cid, body.revision)
+
+    @app.get('/api/cases/{cid}/plan')
+    def plan(cid: str):
+        return service().workflow.plan(cid)
+
+    @app.post('/api/cases/{cid}/decisions')
+    def decide(cid: str, body: DecisionRequest):
+        return service().workflow.disposition(cid, **body.model_dump())
+
+    @app.post('/api/cases/{cid}/external')
+    def external(cid: str, body: ExternalRequest):
+        return service().workflow.lookup(cid, body.revision, body.factor_id, body.query)
+
+    @app.post('/api/cases/{cid}/apply-cell')
+    def apply_cell(cid: str, body: CellRequest):
+        return service().workflow.apply_cell(cid, **body.model_dump())
+
+    @app.post('/api/cases/{cid}/documents')
+    async def attach(cid: str, request: Request, revision: int, name: str = '文件.pdf'):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > 20 * 1024 * 1024:
+                raise HTTPException(413, '文件上限 20 MB。')
+        return await run_in_threadpool(service().workflow.upload, cid, revision, bytes(data), name[:200])
+
+    @app.get('/api/cases/{cid}/artifacts/{kind}')
+    def artifact(cid: str, kind: str, revision: int, run_id: str):
+        data, media_type, name = service().workflow.export(cid, revision, run_id, kind)
+        return Response(data, media_type=media_type, headers={'Content-Disposition': f'attachment; filename="{name}"'})
+
     @app.get('/api/cases/{cid}/export/{kind}')
     def export(cid: str, kind: str, revision: int | None = None):
         if kind in {'review-xlsx', 'table3-xlsx', 'table4-xlsx', 'table5-xlsx'}:
@@ -251,8 +332,12 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
                 'Content-Disposition': "attachment; filename*=UTF-8''" + quote(artifact.filename),
                 'X-Case-Revision': str(artifact.revision), 'Cache-Control': 'no-store'})
         result = service().get_case(cid)
+        if revision is not None and result['case']['revision'] != revision:
+            raise RevisionConflict('匯出連結已過期，請重新開啟案件。')
         case = Case.model_validate(result['case'])
-        return export_case(case, result['review'], service().repository.get_rules(case.ruleset_id), kind, now())
+        response = export_case(case, result['review'], service().repository.get_rules(case.ruleset_id), kind, now())
+        service().workflow.validated_run(cid, case.revision, result['run']['id'])
+        return response
 
     app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
 

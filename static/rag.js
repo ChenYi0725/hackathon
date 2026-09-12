@@ -46,8 +46,10 @@ export function setupRag({state,api,modal,esc,save}) {
    if(generate&&!approved)throw new Error('請先確認問題與文件的上雲適用性。');
    output.textContent=agent?'Agent 正在選擇工具並查詢…':generate?'正在檢索並生成說明…':'正在本機查找來源…';
    const result=await api('/api/cases/'+currentCase.id+(agent?'/agent-evidence':'/evidence'),{method:'POST',body:JSON.stringify({revision:currentCase.revision,question,...(agent?{}:{generate}),cloud_data_approved:approved})});
+   if(state.current.id!==currentCase.id||state.current.revision!==currentCase.revision||state.dirty)throw new Error('案件已變更，舊問答不再顯示。');
    const numbers=new Map(result.hits.map((h,i)=>[h.id,i+1]));
    output.innerHTML=`<p>${esc(result.message)}</p>${result.tool_trace?.length?`<p>工具紀錄：${result.tool_trace.map(t=>esc(t.tool)+'（'+esc(t.status)+'）').join(' → ')}</p>`:''}${result.review?`<details><summary>程式審查結果（版本 ${result.case_revision}）</summary><p>通過 ${result.review.counts.pass}／錯誤 ${result.review.counts.error}／待確認 ${result.review.counts.pending}／缺資料 ${result.review.counts.missing}</p>${result.review.checks.map(c=>`<p>${esc(c.title)}：${esc(c.message)}</p>`).join('')}</details>`:''}${result.status==='no_evidence'?'<p>找不到符合版本、日期與問題的來源。</p>':''}${result.status==='insufficient_evidence'?'<p>現有原文不足以回答，請人工核對或補充文件。</p>':''}
+    ${result.external_observations?.length?`<details><summary>外部查證預覽（尚未保存至案件）</summary><p>正式佐證請使用案件的「外部資料與 GIS」；失敗不代表沒有設施。</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(result.external_observations,null,2))}</pre></details>`:''}
     ${result.statements.map(s=>`<p>${esc(s.text)} ${s.citation_ids.map(id=>`<a href="#rag-cite-${esc(id)}">[${numbers.get(id)}]</a>`).join('')}</p>`).join('')}
     ${result.hits.map((h,i)=>`<article id="rag-cite-${esc(h.id)}"><h4>[${i+1}] ${esc(h.document_name)} · 第 ${h.source.page} 頁</h4><p>基準版本 ${esc(h.ruleset_version)} · ${esc(h.valid_from)}～${esc(h.valid_to)}</p><blockquote style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(h.source.quote)}</blockquote><a target="_blank" rel="noopener" href="/api/documents/${encodeURIComponent(h.source.document_id)}/file#page=${h.source.page}">查看原始 PDF</a></article>`).join('')}`;
   }

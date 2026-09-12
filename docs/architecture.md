@@ -1,5 +1,7 @@
 # PaddleOCR / Bedrock 估價審查架構
 
+核心流程增量已接通，詳細狀態見 [實作與驗收](core-workflow.md)。在同一個服務新增 `application/workflow.py`、`domain/workflow.py` 與文件／外部／報告 adapters；`bootstrap.py` 注入，沒有新增微服務。案件可含最多三比較標的，追加資料保持原 Case 欄位相容。SQLite 另有 `review_runs`、`dispositions`、`external_evidence`，保留舊資料與 audit。後端可直接產生 PDF、Excel、ZIP；完整住宅基準映射及原模板套印仍未完成。
+
 ## 領域邊界
 
 本版是一個估價審查 bounded context，以模組化單體部署。
@@ -10,9 +12,9 @@
 - 原始文件獨立保存；案件與文件透過 ID 關聯。
 - `review` 是純領域計算，不存取資料庫、不呼叫模型。
 
-保留現有金山商業用地計算規則與單一比較標的範圍。`app/domain/shulin_residential/`
+保留現有金山商業用地計算規則與第一筆比較標的資料形狀，追加標的獨立保存。`app/domain/shulin_residential/`
 已提供樹林普通住宅用地的純領域計算、分級及矩陣查表，但尚未接入 `Case`、規則版本儲存或
-application 流程；多比較標的與完整計算追溯仍屬後續領域擴充。
+application 流程；目前多比較標的只執行已發布的規則與有明確來源的加權公式。
 
 ## 依賴方向
 
@@ -83,7 +85,7 @@ AWS 單機部署由 Nginx 提供限制來源 IP 的 HTTP 入口，管理走 SSM�
 
 ## Agentic RAG
 
-`AgenticRagService` 讓模型透過 `AgentModel` 選擇四個已註冊函式：搜尋、來源讀頁、查看規則及 domain 審查。Bedrock adapter 負責原生 toolUse／toolResult；工具由 application 執行，不讓模型直接操作 Python 或資料庫。迴圈受 revision、工具白名單、引用驗證及次數限制。詳見 [Agentic RAG](agentic-rag.md)。
+`AgenticRagService` 讓模型透過 `AgentModel` 選擇搜尋、來源讀頁、查看規則及 domain 審查；接上核心流程時另提供查核規劃與唯讀設施查詢。Bedrock adapter 負責原生 toolUse／toolResult；工具由 application 執行，不讓模型直接操作 Python 或資料庫。迴圈受 revision、工具白名單、引用驗證及次數限制。詳見 [Agentic RAG](agentic-rag.md)。
 
 
 ## 計算欄位來源相容性

@@ -4,6 +4,11 @@ from app.domain.engine import number
 def validate_ruleset(r):
     for key in ['name','version','locality','land_use','source','direction']:
         if not isinstance(r.get(key),str) or not r[key].strip() or len(r[key])>500:raise ValueError('基準缺少有效欄位：'+key)
+    if r['direction'] != '列：比準地；欄：比較標的；矩陣值為百分點':
+        raise ValueError('目前規則引擎僅支援列＝比準地、欄＝比較標的的百分點矩陣；不得倒用其他表格方向。')
+    if r.get('aggregation_formula') is not None:
+        if r['aggregation_formula'] != 'weighted-trial-v1' or not isinstance(r.get('aggregation_source'), str) or not r['aggregation_source'].strip():
+            raise ValueError('僅支援有明確來源的 weighted-trial-v1 多標的公式。')
     rules=r.get('rules')
     if not isinstance(rules,list) or not 1<=len(rules)<=100:raise ValueError('基準需包含 1–100 項因素。')
     ids=set()

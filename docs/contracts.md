@@ -2,6 +2,14 @@
 
 本文件是 Domain、Application、Infrastructure 與 Interfaces 開發者共用的契約。**第一節的 v1 確認失效已在本次實作；第二至七節是 DDD-01 至 DDD-08 的目標 schema v2，尚未提供 v2 API、完整 v2 ports、資料遷移或 PDF renderer。** 不得把目標契約當成已存在的可呼叫功能。第八節為已接線的 v1 RAG 增量。
 
+## 0. 已實作的核心流程相容增量
+
+目前另有 [核心流程契約與驗收](core-workflow.md)：`Case.document_ids`、逐欄 `field_sources`、`change_reason`、最多兩筆 `additional_comparisons`（加上既有第一筆，共三筆）。各比較標的有穩定 ID、自己的 factors／totals／確認狀態；並未將原欄位拆除或宣稱完成以下所有 v2 契約。
+
+`Evidence` 增加可選 document_id、sha256、sheet、cell、formula。文件來源採用透過用例驗證案件關聯與實際儲存格。`review_runs` 保存不可覆寫的案件、規則、證據與結果；`dispositions` 將人工處置與技術判定分開，操作 ID 防止重試重複。
+
+`CaseDocumentReader`、`SnapshotRenderer`、`ExternalEvidence` ports 已在 `application/ports.py` 定義，於 bootstrap 注入。新增 `/review`、`/documents`、`/apply-cell`、`/decisions`、`/external`、`/artifacts/{kind}`；既有 API 保持可讀。`artifacts` 必須帶 revision 及 run_id，前後核對版本。原 HTML forms 對多標的回覆 400，明確引導完整 Excel／ZIP，不取第一筆冒充整案。
+
 ## 1. 現行 v1：確認只適用於已保存內容
 
 確認失效規則由 `app/domain/confirmation.py` 定義，application 在一般保存、JSON 建立／匯入及採用建議時執行。HTTP payload 保持原格式，不新增必填欄位。
@@ -135,3 +143,19 @@ GraphRAG 的選型、住宅公式來源核對及正式 PDF 模板實作仍依 [T
 Application 擁有 AgentModel.next_turn(context, history, tools) → AgentTurn；ToolCall、ToolResult 與四個工具的參數 schema 在 agent_contracts.py。AgentTurn.continuation 是 adapter 擁有的不透明往返信息，不由 application 解讀 AWS 欄位；SDK 型別不進入 domain。
 
 agentic_rag.py 執行工具白名單與有界迴圈，使用既有 EvidenceRetriever、ReviewRepository 與 domain.review。新增唯讀 /api/cases/{id}/agent-evidence；不改 v1 Case、保存、確認或資料庫 schema。API 與預算見 [Agentic RAG 文件](agentic-rag.md)。原本純本機檢索與單次生成 API 保持相容。
+
+
+### core-2 來源及快照相容補充
+
+- `field_sources` 的逐欄引用優先；單一 `Factor.evidence` 為 Excel cell 時，不可作為同列其他欄位的推定來源。PDF 列來源與逐欄來源保留相容，但追加文件前會固定舊文件 ID。
+- OCR／AI 草稿來源明確綁定文件；採用 AI 草稿同步替換 subject、comparable、entered_rate 的來源，不變更其他未採用欄位。
+- `input_sources` 額外包含 subject_grade、comparable_grade。既有三個鍵保留，不修改數值 JSON 型別或資料庫 schema。
+- `review_runs.engine_version` 使用 `core-2`；舊引擎快照仍可保存歷史，不能作為目前版本匯出或新增人工處置的依據。重新檢核保留案件 revision，但產生不同 run ID。
+
+
+### core-3 與 OCR 來源相容整合
+
+- 保留 main 的 `Case.total_evidence` 舊案件來源，與核心流程的 `field_sources` 共存；審查優先使用逐欄來源，沒有時讀取舊總計引用，不回填未記錄的頁碼。
+- 追加 PDF 前，將舊總計引用綁定原文件 ID。新增比較標的只讀 `comparisons.<id>.totals.<field>`，不繼承第一個標的的總計來源。
+- 手動修改總計清除未更新的舊引用；採用新 Excel 儲存格則保留該次新來源。來源按文件、頁碼、工作表及儲存格顯示。
+- `review_runs.engine_version` 更新為 `core-3`，舊快照保存歷史但須重新檢核才能匯出或處置。影響 domain／application／UI／快照產製；既有 JSON 欄位預設值與 SQLite schema 保持相容，無估價公式變更。

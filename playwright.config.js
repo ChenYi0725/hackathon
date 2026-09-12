@@ -3,9 +3,10 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const venv = path.join(__dirname, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
-const port = process.env.TEST_PORT || '8011';
 const conda = path.join(os.homedir(), 'anaconda3', 'python.exe');
 const python = process.env.TEST_PYTHON || (fs.existsSync(venv) ? venv : fs.existsSync(conda) ? conda : 'python');
+const port = process.env.TEST_PORT || '8011';
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'landwise-e2e-'));
 module.exports = defineConfig({
   testDir: './e2e',
   outputDir: 'test-results/artifacts',
@@ -24,6 +25,6 @@ module.exports = defineConfig({
     url: `http://127.0.0.1:${port}/api/health`,
     reuseExistingServer: false,
     timeout: 30000,
-    env: { ...process.env, PORT: port, APP_DATA_DIR: path.join(__dirname, 'test-results', `db-${Date.now()}`), BEDROCK_ENABLED: 'false' }
+    env: { ...process.env, PORT: port, APP_DATA_DIR: dataDir, BEDROCK_ENABLED: 'false' }
   }
 });

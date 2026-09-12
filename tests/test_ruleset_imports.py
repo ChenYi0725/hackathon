@@ -72,7 +72,9 @@ def extraction_result(locality='測試市甲區'):
 
 def test_candidate_keeps_source_data_and_validates_for_review_engine():
     candidate = build_review_candidates(extraction_result())[0]
-    validated = validate_ruleset(candidate)
+    with pytest.raises(ValueError, match='百分點矩陣'):
+        validate_ruleset(candidate)
+    validated = validate_ruleset(normalize_candidate(candidate, SOURCE_BENCHMARK_ROW))
     rule = validated['rules'][0]
     assert candidate['locality'] == '測試市甲區'
     assert rule['id'] == 'regional-opaque-factor'

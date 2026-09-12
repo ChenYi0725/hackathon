@@ -1,3 +1,5 @@
+> 核心流程增量：正式 bootstrap 另提供 `plan_checks` 與 `lookup_facility`，共六個有界工具。外部候選只讀預覽，未保存至案件；正式保存使用案件外部查證用例。Agent 接收案件欄位、基準核准狀態；計算經過核心流程發布／期間檢查。以下原四工具設計仍是基礎，新增整合見 [core-workflow.md](core-workflow.md)。新六工具已測本機編排，尚未重跑 Bedrock live。
+
 # Agentic RAG：由 Bedrock 選擇本機 functions
 
 這是 Bedrock Converse 原生 tool calling 的 client-side Agentic RAG：模型提出 toolUse，本機 application 執行已註冊函式，再把 toolResult 回傳模型，模型可改寫問題、繼續查找或結束回答。沒有建立受管 Amazon Bedrock Agent、Knowledge Base 或 Lambda action group。

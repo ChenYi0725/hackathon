@@ -89,3 +89,39 @@ def test_http_rejects_nonexistent_source_and_json_import_discards_detached_citat
         data['document_id'] = None
         imported = client.post('/api/cases', json=data).json()['case']
         assert imported['total_evidence'] == {} and imported['totals']['individual'] == 0
+
+
+def test_workflow_keeps_each_comparisons_total_source_separate(repo):
+    from app.domain.models import Comparison
+    from app.domain.workflow import calculate
+    case = Case(title='多標的來源', document_id='first', totals={'individual': 0},
+                total_evidence={'individual': Evidence(page=1, quote='合計 0%')},
+                additional_comparisons=[Comparison(id='second', totals={'individual': 2})])
+    rules = repo.get_rules(case.ruleset_id)
+    rows = {r['id']: r for r in calculate(case, rules, [])['checks']}
+    assert rows['norm_individual']['page'] == 1
+    assert rows['norm_individual']['evidence']['document_id'] == 'first'
+    assert rows['second:norm_individual']['page'] is None
+    case.field_sources['comparisons.second.totals.individual'] = Evidence(document_id='second-doc', page=4, quote='合計 2%')
+    rows = {r['id']: r for r in calculate(case, rules, [])['checks']}
+    assert rows['second:norm_individual']['page'] == 4
+    assert rows['second:norm_individual']['evidence']['document_id'] == 'second-doc'
+
+
+@pytest.mark.parametrize('secondary', [False, True])
+@pytest.mark.parametrize('replace_source', [False, True])
+def test_manual_total_edit_drops_old_source_but_cell_adoption_keeps_new_source(secondary, replace_source):
+    from app.domain.models import Comparison
+    old = Case(title='總計來源', document_id='pdf', document_ids=['pdf', 'xlsx'], totals={'individual': 0},
+               additional_comparisons=[Comparison(id='second', totals={'individual': 0})])
+    key = ('comparisons.second.' if secondary else '') + 'totals.individual'
+    old.field_sources[key] = Evidence(document_id='pdf', page=1, quote='合計 0%')
+    proposed = old.model_copy(deep=True)
+    target = proposed.additional_comparisons[0] if secondary else proposed
+    target.totals.individual = 2
+    if replace_source:
+        proposed.field_sources[key] = Evidence(document_id='xlsx', sheet='明細', cell='B2', quote='2', method='xlsx-cell')
+    saved = invalidate_confirmations(old, proposed)
+    assert (key in saved.field_sources) == replace_source
+    assert key in old.field_sources
+    assert key in invalidate_confirmations(old, old).field_sources

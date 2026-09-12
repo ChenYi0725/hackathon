@@ -9,6 +9,7 @@ from pathlib import Path
 from app.application.ports import RevisionConflict
 from app.domain.models import Case
 from app.domain.rules import default_rules
+from app.domain.workflow import digest
 
 
 def now():
@@ -47,6 +48,9 @@ class SQLiteReviewRepository:
                 CREATE INDEX IF NOT EXISTS evidence_scope ON evidence_documents
                     (ruleset_id, ruleset_version, locality, land_use, valid_from, valid_to);
                 CREATE TABLE IF NOT EXISTS request_gate (id TEXT PRIMARY KEY, next_at REAL NOT NULL);
+                CREATE TABLE IF NOT EXISTS review_runs (id TEXT PRIMARY KEY, case_id TEXT NOT NULL, revision INTEGER NOT NULL, body TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS dispositions (id TEXT PRIMARY KEY, case_id TEXT NOT NULL, body TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS external_evidence (id TEXT PRIMARY KEY, case_id TEXT NOT NULL, revision INTEGER NOT NULL, body TEXT NOT NULL);
             ''')
             rules = default_rules()
             c.execute('INSERT OR IGNORE INTO rulesets VALUES (?,?)', (rules['id'], json.dumps(rules, ensure_ascii=False)))
@@ -93,10 +97,13 @@ class SQLiteReviewRepository:
         return json.loads(row['body'])
 
     def add_rules(self, ruleset):
-        saved = dict(ruleset, id='custom-' + uuid.uuid4().hex)
+        rid = 'custom-' + uuid.uuid4().hex
+        if ruleset.get('approval_state') == 'published':
+            rid = 'published-' + digest({k:v for k,v in ruleset.items() if k not in ('id','approved_at')})
+        saved = dict(ruleset, id=rid)
         with self.db() as c:
-            c.execute('INSERT INTO rulesets VALUES (?,?)', (saved['id'], json.dumps(saved, ensure_ascii=False)))
-        return saved
+            c.execute('INSERT OR IGNORE INTO rulesets VALUES (?,?)', (saved['id'], json.dumps(saved, ensure_ascii=False)))
+        return self.get_rules(saved['id'])
 
     def save_confirmed_ruleset(self, ruleset, document_id, valid_from, valid_to):
         """Atomically publish a ruleset and index its already-OCRed source."""
@@ -169,6 +176,74 @@ class SQLiteReviewRepository:
     def cache_put(self, key, value):
         with self.db() as c:
             c.execute('INSERT OR REPLACE INTO extraction_cache VALUES (?,?)', (key, json.dumps(value, ensure_ascii=False)))
+
+    def save_run(self, run):
+        with self.db() as c:
+            c.execute('BEGIN IMMEDIATE')
+            row = c.execute('SELECT body FROM cases WHERE id=?', (run['case_id'],)).fetchone()
+            if not row or json.loads(row['body'])['revision'] != run['case_revision']:
+                raise RevisionConflict('檢核期間案件已修改，舊結果不予套用。')
+            current = self._external_rows(c, run['case_id'], run['case_revision'])
+            if digest(current) != run['evidence_hash']:
+                raise RevisionConflict('檢核期間佐證已變更，舊結果不予套用。')
+            c.execute('INSERT OR IGNORE INTO review_runs VALUES (?,?,?,?)',
+                      (run['id'], run['case_id'], run['case_revision'], json.dumps(run, ensure_ascii=False)))
+        return self.get_run(run['case_id'], run['id'])
+
+    def get_run(self, case_id, run_id):
+        with self.db() as c:
+            row = c.execute('SELECT body FROM review_runs WHERE id=? AND case_id=?', (run_id, case_id)).fetchone()
+        if not row:
+            raise KeyError(run_id)
+        return json.loads(row['body'])
+
+    def dispositions(self, case_id):
+        with self.db() as c:
+            return [json.loads(r['body']) for r in c.execute('SELECT body FROM dispositions WHERE case_id=? ORDER BY rowid', (case_id,))]
+
+    def save_disposition(self, record):
+        with self.db() as c:
+            c.execute('BEGIN IMMEDIATE')
+            existing = c.execute('SELECT body FROM dispositions WHERE id=?', (record['id'],)).fetchone()
+            if existing:
+                old = json.loads(existing['body'])
+                keys = ('case_id', 'run_id', 'check_id', 'decision', 'reason')
+                if any(old[k] != record[k] for k in keys):
+                    raise RevisionConflict('相同操作 ID 不得用於不同人工處置。')
+                return old
+            row = c.execute('SELECT body FROM cases WHERE id=?', (record['case_id'],)).fetchone()
+            if not row or json.loads(row['body'])['revision'] != record['case_revision']:
+                raise RevisionConflict('人工處置的案件版本已過期。')
+            run = c.execute('SELECT body FROM review_runs WHERE id=? AND case_id=?', (record['run_id'], record['case_id'])).fetchone()
+            if not run or json.loads(run['body'])['evidence_hash'] != digest(self._external_rows(c, record['case_id'], record['case_revision'])):
+                raise RevisionConflict('人工處置的佐證版本已過期。')
+            c.execute('INSERT INTO dispositions VALUES (?,?,?)',
+                      (record['id'], record['case_id'], json.dumps(record, ensure_ascii=False)))
+        return record
+
+    def external_for(self, case_id, revision):
+        with self.db() as c:
+            return self._external_rows(c, case_id, revision)
+
+    @staticmethod
+    def _external_rows(c, case_id, revision):
+        latest = {}
+        for row in c.execute('SELECT body FROM external_evidence WHERE case_id=? AND revision=? ORDER BY rowid', (case_id, revision)):
+            item = json.loads(row['body'])
+            # Preserve all rows for history, but a retry replaces the current outcome of that query type.
+            key = (item.get('comparison_id', 'primary'), item['factor_id'], item['mode'], item.get('query', {}).get('dataset', 'parks'))
+            latest[key] = item
+        return [latest[key] for key in sorted(latest)]
+
+    def save_external(self, case_id, revision, result):
+        with self.db() as c:
+            c.execute('BEGIN IMMEDIATE')
+            row = c.execute('SELECT body FROM cases WHERE id=?', (case_id,)).fetchone()
+            if not row or json.loads(row['body'])['revision'] != revision:
+                raise RevisionConflict('外部查詢期間案件已修改；請重新查詢。')
+            c.execute('INSERT INTO external_evidence VALUES (?,?,?,?)',
+                      (result['id'], case_id, revision, json.dumps(result, ensure_ascii=False)))
+        return result
 
 
     def save_evidence_document(self, data, name, pages, ruleset, valid_from, valid_to):

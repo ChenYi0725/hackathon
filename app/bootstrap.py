@@ -10,6 +10,10 @@ from app.infrastructure.paddle_pdf import LocalPdfReader
 from app.infrastructure.persistence import SQLiteReviewRepository
 from app.infrastructure.text_pdf import read_pdf
 from app.infrastructure.form_exports import TemplateFormRenderer
+from app.application.workflow import WorkflowService
+from app.infrastructure.documents import CaseDocumentReader
+from app.infrastructure.reports import SnapshotRenderer
+from app.infrastructure.external import OfficialEvidenceAdapter
 from app.infrastructure.ruleset_table import PaddleLayoutRulesetExtractor
 from app.application.ruleset_extraction import RulesetExtractionService
 from app.application.ruleset_imports import RulesetImportService
@@ -29,9 +33,12 @@ def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None,
         pdf_reader,
         ruleset_extractor or PaddleLayoutRulesetExtractor(),
     )
-    return ReviewService(repository, pdf_reader, ai or transport, rag=rag,
+    service = ReviewService(repository, pdf_reader, ai or transport, rag=rag,
                          renderer=TemplateFormRenderer(settings.form_template_dir),
                          ruleset_import=ruleset_import)
+    service.workflow = WorkflowService(service, CaseDocumentReader(pdf_reader), SnapshotRenderer(), OfficialEvidenceAdapter())
+    agent.workflow = service.workflow
+    return service
 
 
 def build_ruleset_extraction_service(settings, pdf=None):

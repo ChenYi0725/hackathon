@@ -2,7 +2,7 @@ from copy import deepcopy
 from app.bootstrap import build_service
 from app.infrastructure.settings import Settings
 from scripts.evaluate_agent import specifications, prepare, assess, run
-from app.domain.engine import review
+from app.domain.workflow import calculate
 
 
 def test_fixture_validation_never_calls_cloud(tmp_path):
@@ -16,7 +16,7 @@ def calculation_fixture(tmp_path):
     service=build_service(Settings(data_dir=tmp_path,reference_dir=tmp_path,ai_enabled=False))
     spec=specifications()[0]
     case,rules,sources=prepare(service,spec)
-    result=dict(status='insufficient_evidence',statements=[],hits=[],review=review(case,rules),
+    result=dict(status='insufficient_evidence',statements=[],hits=[],review=calculate(case,rules,[]),
                 tool_trace=[dict(tool='get_rule',status='success'),dict(tool='review_case',status='success')])
     outputs=[dict(status='success',data=dict(rule=rules['rules'][0],ruleset_id=rules['id'],ruleset_version=rules['version']))]
     return spec,result,case,rules,sources,outputs
@@ -42,7 +42,7 @@ def test_missing_value_gold_is_not_zero(tmp_path):
     service=build_service(Settings(data_dir=tmp_path,reference_dir=tmp_path,ai_enabled=False))
     spec=next(s for s in specifications() if s['id']=='missing_data')
     case,rules,sources=prepare(service,spec)
-    result=dict(status='insufficient_evidence',statements=[],hits=[],review=review(case,rules),
+    result=dict(status='insufficient_evidence',statements=[],hits=[],review=calculate(case,rules,[]),
                 tool_trace=[dict(tool='review_case',status='success')])
     assert all(assess(spec,result,case,rules,sources,[]).values())
     result['review']['computed']['individual']=0

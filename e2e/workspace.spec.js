@@ -4,9 +4,10 @@ const path = require('node:path');
 test('dashboard, evidence, fix, edit, persist and export', async ({ page }) => {
   const errors=[];
   page.on('pageerror', e => errors.push(e.message));
+  const initialCases=await (await page.request.get('/api/cases')).json();
   await page.goto('/');
   await expect(page.getByRole('heading', { name: '案件工作台', exact: true })).toBeVisible();
-  await expect(page.locator('.case-table tbody tr')).toHaveCount(2);
+  await expect(page.locator('.case-table tbody tr')).toHaveCount(initialCases.length);
   await page.screenshot({ path: 'test-results/dashboard.png', fullPage: true });
   const [sampleResponse] = await Promise.all([
     page.waitForResponse(r => r.url().endsWith('/api/samples/errors') && r.request().method() === 'POST'),
@@ -35,7 +36,8 @@ test('dashboard, evidence, fix, edit, persist and export', async ({ page }) => {
   await page.getByRole('button',{name:'儲存並重新審查'}).click();
   await page.getByRole('button',{name:'審查結果',exact:true}).click();
   const school=page.locator('.check').filter({has:page.getByRole('heading',{name:'接近學校之程度',exact:true})});
-  await expect(school.locator('.pill')).toHaveText('通過');
+  // Legacy reference rules have no human-published applicability period.
+  await expect(school.locator('.pill')).toHaveText('待確認');
   await school.getByRole('button',{name:'原文 p.3'}).click();
   await page.getByRole('button',{name:'文字版',exact:true}).click();
   if (sampleCase.document_id) {
@@ -61,14 +63,21 @@ test('dashboard, evidence, fix, edit, persist and export', async ({ page }) => {
   await page.getByRole('button',{name:'關閉',exact:true}).click();
   await page.getByRole('button',{name:'返回案件工作台',exact:true}).click();
   await page.getByRole('textbox',{name:'搜尋案件'}).fill('錯誤示範');
-  await expect(page.locator('.case-table tbody tr')).toHaveCount(2);
+  await expect(page.locator('.case-table tbody tr')).toHaveCount(initialCases.filter(c=>c.title.includes('錯誤示範')).length+1);
   expect(errors).toEqual([]);
 });
 
 test('scanned PDF upload through configured OCR and disabled Bedrock message', async ({ page }) => {
   test.setTimeout(120000);
   await page.goto('/');
-  await page.locator('#pdf-input').setInputFiles(path.join(__dirname,'..','tests','fixtures','synthetic-scanned.pdf'));
+  await page.getByRole('button',{name:'上傳題目',exact:true}).click();
+  await expect(page.locator('#case-upload-ruleset')).not.toHaveValue('');
+  const chooserPromise=page.waitForEvent('filechooser');
+  await page.getByRole('button',{name:'選擇題目 PDF',exact:true}).click();
+  const uploadResponse=page.waitForResponse(r=>r.url().includes('/api/documents?')&&r.request().method()==='POST',{timeout:110000});
+  await (await chooserPromise).setFiles(path.join(__dirname,'..','tests','fixtures','synthetic-scanned.pdf'));
+  const uploaded=await uploadResponse;
+  expect(uploaded.status()).toBe(200);
   await expect(page.getByRole('heading',{name:'synthetic-scanned',exact:true})).toBeVisible({timeout:110000});
   await page.getByRole('button',{name:'文字版',exact:true}).click();
   await page.locator('#source-page').selectOption('1');
