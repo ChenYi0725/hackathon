@@ -88,6 +88,23 @@ class ReviewService:
         saved = self.repository.save_case(candidate, action, new=new)
         return self.payload(saved)
 
+    def copy_case(self, case_id: str, revision: int):
+        source = self.repository.get_case(case_id)
+        if source.revision != revision:
+            raise RevisionConflict('案件已更新，請重新載入後再複製。')
+
+        copied = source.model_copy(deep=True)
+        suffix = ' · 副本'
+        copied.title = source.title[:150 - len(suffix)] + suffix
+        copied = invalidate_confirmations(None, copied)
+        self.validate_case(copied)
+        saved = self.repository.save_case(
+            copied,
+            f'複製案件（來源 {source.id}，版本 {source.revision}）',
+            new=True,
+        )
+        return self.payload(saved)
+
     def create_sample(self, kind, document=None):
         if kind not in ('original', 'errors'):
             raise ValueError('未知的範例類型。')

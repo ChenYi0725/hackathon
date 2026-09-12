@@ -126,3 +126,29 @@ test('AI draft adoption replaces previous cell citations and stays unconfirmed',
  }
  expect(p.review.complete).toBe(false);
 });
+
+
+test('copy case replaces the active review snapshot and keeps the source unchanged', async ({page, request}) => {
+ const errors=[];page.on('pageerror', error=>errors.push(error.message));
+ const source=await createCase(request);
+ const original=await (await request.get('/api/cases/'+source.id)).json();
+ await page.goto('/');
+ await page.getByRole('button',{name:'開啟 '+source.title,exact:true}).click();
+ page.once('dialog',dialog=>dialog.accept());
+ const responsePromise=page.waitForResponse(response=>response.url().endsWith('/copy') && response.request().method()==='POST');
+ await page.getByRole('button',{name:'複製案件',exact:true}).click();
+ const copied=await (await responsePromise).json();
+ expect(copied.case.id).not.toBe(source.id);
+ expect(copied.case.factors.every(factor=>!factor.confirmed)).toBe(true);
+ expect(copied.case.totals_confirmed).toBe(false);
+ await expect(page.getByRole('heading',{name:source.title+' · 副本',exact:true})).toBeVisible();
+ await expect(page.locator('#review-version')).toContainText(copied.run.id.slice(0,12));
+ await page.getByRole('button',{name:'匯出成果',exact:true}).click();
+ const link=page.getByRole('link',{name:'下載 PDF 審查摘要 ↗',exact:true});
+ const href=await link.getAttribute('href');
+ expect(href).toContain(copied.case.id);
+ expect(href).toContain(copied.run.id);
+ expect((await request.get(href)).status()).toBe(200);
+ expect(await (await request.get('/api/cases/'+source.id)).json()).toEqual(original);
+ expect(errors).toEqual([]);
+});

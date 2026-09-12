@@ -14,6 +14,8 @@ from app.application.workflow import WorkflowService
 from app.infrastructure.documents import CaseDocumentReader
 from app.infrastructure.reports import SnapshotRenderer
 from app.infrastructure.external import OfficialEvidenceAdapter
+from app.infrastructure.ruleset_table import PaddleLayoutRulesetExtractor
+from app.application.ruleset_extraction import RulesetExtractionService
 
 
 def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None, agent_model=None):
@@ -28,6 +30,14 @@ def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None, ag
     service.workflow = WorkflowService(service, CaseDocumentReader(pdf_reader), SnapshotRenderer(), OfficialEvidenceAdapter())
     agent.workflow = service.workflow
     return service
+
+
+def build_ruleset_extraction_service(settings, pdf=None):
+    """Wire PaddleOCR output to deterministic structured-ruleset compilation."""
+    return RulesetExtractionService(
+        pdf or PaddlePdfReader(settings),
+        PaddleLayoutRulesetExtractor(),
+    )
 
 
 def sample_document(settings):

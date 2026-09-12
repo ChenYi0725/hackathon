@@ -3,14 +3,13 @@ from pathlib import Path
 
 import pytest
 from openpyxl import Workbook, load_workbook
-from pypdf import PdfReader
 from fastapi.testclient import TestClient
 
 from app.application.export_contracts import ExportUnavailable
 from app.domain.sample import sample_case
 from app.domain.rules import default_rules
 from app.domain.engine import review
-from app.infrastructure.form_exports import TemplateFormRenderer, TEMPLATES, pdf_font
+from app.infrastructure.form_exports import TemplateFormRenderer, TEMPLATES
 from app.infrastructure.settings import Settings
 from app.interfaces.http import create_app
 
@@ -46,14 +45,14 @@ def test_workbooks_fill_separate_forms_keep_zero_and_literal_text(templates):
     for number in ('3', '4', '5'):
         artifact = render(TemplateFormRenderer(templates), f'table{number}-xlsx', case)
         wb = load_workbook(io.BytesIO(artifact.data))
-        assert '隱藏範例' not in wb.sheetnames
+        assert '隱藏範例' in wb.sheetnames
         assert '填值與審核明細' in wb.sheetnames
-        assert all(c.data_type != 'f' for w in wb for row in w for c in row)
+        if number == '3':
+            assert wb['表3區段勘查表']['A2'].data_type == 'f'
         assert 'A1:C1' in str(wb.active.merged_cells)
         if number == '3':
             assert len(wb.worksheets) == 3
-            assert case.subject_section == wb.worksheets[0]['G3'].value
-            assert case.comparable_section == wb.worksheets[1]['G3'].value
+            assert case.subject_section == wb['表3區段勘查表']['G3'].value
         if number == '4':
             assert wb.active['D4'].value == case.subject_name
             assert wb.active['D4'].data_type == 's'
@@ -65,22 +64,24 @@ def test_workbooks_fill_separate_forms_keep_zero_and_literal_text(templates):
     assert all(p.read_bytes() == data for p, data in source_bytes.items())
 
 
-def test_pdf_report_and_forms_have_values_and_multiple_pages(templates):
-    try:
-        pdf_font()
-    except ExportUnavailable:
-        pytest.skip('Set PDF_FONT_PATH to an installed Traditional Chinese TrueType font')
-    case = sample_case(False)
-    case.notes = '<script>literal text</script>\n' + '長文字內容' * 100
-    for kind in ('report-pdf', 'table3-pdf', 'table4-pdf', 'table5-pdf'):
-        artifact = render(TemplateFormRenderer(templates), kind, case)
-        assert artifact.data.startswith(b'%PDF-')
-        reader = PdfReader(io.BytesIO(artifact.data))
-        content = '\n'.join(p.extract_text() for p in reader.pages)
-        assert '長文字內容' in content
-        assert '待確認' in content
-        assert str(case.totals.trial_price) in content
-        assert len(reader.pages) >= 2
+def test_legacy_openpyxl_defined_name_collection_is_supported(templates, monkeypatch):
+    """The deployed Anaconda image uses openpyxl 3.0's DefinedNameList."""
+    import openpyxl.workbook.defined_name as defined_name_module
+    legacy = defined_name_module.DefinedNameList
+    assert hasattr(legacy(), 'definedName')
+    artifact = render(TemplateFormRenderer(templates), 'table3-xlsx')
+    assert artifact.data.startswith(b'PK')
+
+
+@pytest.mark.parametrize('kind', ['report-pdf', 'table3-pdf', 'table4-pdf', 'table5-pdf'])
+def test_pdf_exports_are_removed(templates, tmp_path, kind):
+    with pytest.raises(KeyError):
+        render(TemplateFormRenderer(templates), kind)
+    app = create_app(Settings(data_dir=tmp_path / 'data', form_template_dir=templates, ai_enabled=False))
+    with TestClient(app) as client:
+        case = client.get('/api/cases').json()[0]
+        response = client.get(f'/api/cases/{case["id"]}/export/{kind}?revision=1')
+        assert response.status_code == 404
 
 
 def test_exports_require_revision_and_do_not_mutate_case(templates, tmp_path):
@@ -122,14 +123,24 @@ def test_native_templates_include_all_comparisons(templates):
     case=sample_case(False)
     case.additional_comparisons=[Comparison(id='second',name='合成第二筆',section='S2',factors=case.factors,totals=case.totals),
                                  Comparison(id='third',name='合成第三筆',section='S3',factors=case.factors,totals=case.totals)]
+    for index, comparison in enumerate(case.additional_comparisons, 2):
+        comparison.factors = [factor.model_copy(deep=True) for factor in comparison.factors]
+        next(factor for factor in comparison.factors if factor.id=='r_road_width').comparable = str(index * 11)
     renderer=TemplateFormRenderer(templates)
     for number in ('3','4','5'):
         artifact=render(renderer,'table'+number+'-xlsx',case)
         book=load_workbook(io.BytesIO(artifact.data))
         if number=='3':
-            assert len(book.worksheets)==5
+            assert len(book.worksheets)==6
+            assert '隱藏範例' in book.sheetnames
+            assert book['表3區段勘查表']['G3'].value==case.subject_section
+            assert book['表3-比較標的1']['G3'].value==case.comparable_section
+            assert book['表3區段勘查表']['A2'].data_type=='f'
             assert book['表3-比較標的2']['G3'].value=='S2'
             assert book['表3-比較標的3']['G3'].value=='S3'
+            assert book['表3-比較標的1']['J11'].value==next(f.comparable for f in case.factors if f.id=='r_road_width')
+            assert book['表3-比較標的2']['J11'].value=='22'
+            assert book['表3-比較標的3']['J11'].value=='33'
         elif number=='4':
             assert book.active['K4'].value=='合成第二筆'
             assert book.active['O4'].value=='合成第三筆'

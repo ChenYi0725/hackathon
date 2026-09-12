@@ -1,4 +1,5 @@
 """HTTP boundary: validation, status codes and representation only."""
+import mimetypes
 import os
 import hmac
 from contextlib import asynccontextmanager
@@ -15,6 +16,9 @@ from app.infrastructure.persistence import now
 from app.infrastructure.settings import ROOT, Settings
 from app.interfaces.exports import export_case
 from app.application.export_contracts import ExportUnavailable
+
+
+mimetypes.add_type('text/javascript', '.js')
 
 
 class RevisionRequest(BaseModel):
@@ -146,6 +150,10 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
             raise ValueError('案件 ID 不符。')
         return service().save_case(case)
 
+    @app.post('/api/cases/{cid}/copy')
+    def copy_case(cid: str, body: RevisionRequest):
+        return service().copy_case(cid, body.revision)
+
     @app.post('/api/cases/{cid}/fix/{check_id}')
     def fix(cid: str, check_id: str, body: RevisionRequest):
         return service().fix(cid, check_id, body.revision)
@@ -267,7 +275,7 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
 
     @app.get('/api/cases/{cid}/export/{kind}')
     def export(cid: str, kind: str, revision: int | None = None):
-        if kind in {'report-pdf', 'table3-xlsx', 'table3-pdf', 'table4-xlsx', 'table4-pdf', 'table5-xlsx', 'table5-pdf'}:
+        if kind in {'table3-xlsx', 'table4-xlsx', 'table5-xlsx'}:
             if revision is None:
                 raise HTTPException(422, '請提供案件 revision，確保匯出版本一致。')
             try:

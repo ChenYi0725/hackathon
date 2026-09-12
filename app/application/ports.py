@@ -4,6 +4,7 @@ from typing import Protocol
 from app.domain.models import Case, Factor
 from app.application.rag_contracts import EvidenceQuery, EvidenceHit, AnswerDraft
 from app.application.agent_contracts import AgentTurn
+from app.application.ruleset_contracts import RulesetExtractionResult
 
 
 class PdfReader(Protocol):
@@ -12,6 +13,16 @@ class PdfReader(Protocol):
 
 class FieldExtractor(Protocol):
     def extract(self, pages: list[dict], ruleset: dict) -> list[Factor]: ...
+
+
+class RulesetExtractor(Protocol):
+    def extract(
+        self,
+        pages: list[dict],
+        *,
+        source_name: str,
+        expected_locality: str,
+    ) -> RulesetExtractionResult: ...
 
 
 class ReviewRepository(Protocol):
