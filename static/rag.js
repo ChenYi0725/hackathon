@@ -12,7 +12,7 @@ export function setupRag({state,api,modal,esc,save}) {
    <div class="actions"><button id="rag-search">本機查找來源</button><button id="rag-answer">AWS 生成說明</button><button id="rag-agent">Agent 自動查詢</button></div>
    <div id="rag-results" aria-live="polite"></div>
    <details><summary>管理這個基準版本的來源 PDF</summary>
-    <p>上傳後由 PaddleOCR 在本機辨識。請依文件確認適用期間；這不會修改計算規則，也不代表 OCR 或規則已獲核准。</p>
+    <p>上傳後由 OCR 在本機辨識。請依文件確認適用期間；這不會修改計算規則，也不代表 OCR 或規則已獲核准。</p>
     <label>適用起日 <input id="rag-from" type="date"></label><label>適用迄日（含） <input id="rag-to" type="date"></label>
     <label>基準 PDF <input id="rag-file" type="file" accept="application/pdf,.pdf"></label>
     <button id="rag-upload">辨識並加入來源</button><div id="rag-documents"></div></details>`);
@@ -35,7 +35,7 @@ export function setupRag({state,api,modal,esc,save}) {
    const file=root.querySelector('#rag-file').files[0],from=root.querySelector('#rag-from').value,to=root.querySelector('#rag-to').value;
    if(!file||!from||!to||from>to)throw new Error('請選擇 PDF 並填寫有效的適用起迄日。');
    if(file.size>20*1024*1024)throw new Error('PDF 上限 20 MB。');
-   output.textContent='PaddleOCR 正在辨識來源文件…';
+   output.textContent='OCR 正在辨識來源文件…';
    const query=new URLSearchParams({name:file.name,valid_from:from,valid_to:to});
    await api('/api/rulesets/'+currentCase.ruleset_id+'/evidence-documents?'+query,{method:'POST',body:file,headers:{'Content-Type':'application/pdf'}});
    output.textContent='來源已加入。請查找原文並核對 OCR。';await refresh();

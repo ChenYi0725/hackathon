@@ -141,7 +141,7 @@ class _MatrixBlock:
 
 
 class PaddleLayoutRulesetExtractor:
-    """Parse the page/line dictionaries returned by ``PaddlePdfReader``."""
+    """Parse shared OCR page/line dictionaries; retain the legacy class name."""
 
     def extract(
         self,
@@ -231,7 +231,7 @@ class PaddleLayoutRulesetExtractor:
             raise RulesetTableExtractionError(f'第 {page_number} 頁缺少有效頁面尺寸。')
         if not isinstance(raw_lines, list) or not raw_lines:
             raise RulesetTableExtractionError(
-                f'第 {page_number} 頁缺少 PaddleOCR line boxes，不能只用純文字解析矩陣。'
+                f'第 {page_number} 頁缺少 OCR line boxes，不能只用純文字解析矩陣。'
             )
         lines = [self._read_line(item, page_number) for item in raw_lines]
         return page_number, float(width), float(height), lines

@@ -76,7 +76,7 @@ def test_stale_ai_result_is_rejected_after_concurrent_update(context):
 
 def test_domain_and_application_do_not_import_infrastructure():
     root = Path(__file__).resolve().parents[1] / 'app'
-    forbidden = ('app.infrastructure', 'app.interfaces', 'app.bootstrap', 'fastapi', 'boto3', 'paddleocr', 'sqlite3')
+    forbidden = ('app.infrastructure', 'app.interfaces', 'app.bootstrap', 'fastapi', 'boto3', 'paddleocr', 'rapidocr', 'onnxruntime', 'sqlite3')
     for path in [*(root / 'domain').rglob('*.py'), *(root / 'application').rglob('*.py')]:
         for node in ast.walk(ast.parse(path.read_text())):
             names = [n.name for n in node.names] if isinstance(node, ast.Import) else [node.module or ''] if isinstance(node, ast.ImportFrom) else []
