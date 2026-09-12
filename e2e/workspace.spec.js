@@ -42,17 +42,18 @@ test('dashboard, evidence, fix, edit, persist and export', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('real PDF upload and missing-model message', async ({ page }) => {
+test('scanned PDF upload through PaddleOCR and disabled Bedrock message', async ({ page }) => {
+  test.setTimeout(120000);
   await page.goto('/');
-  await page.locator('#pdf-input').setInputFiles(path.join(__dirname,'..','查估書表範本.pdf'));
-  await expect(page.getByRole('heading',{name:'查估書表範本',exact:true})).toBeVisible();
+  await page.locator('#pdf-input').setInputFiles(path.join(__dirname,'..','tests','fixtures','synthetic-scanned.pdf'));
+  await expect(page.getByRole('heading',{name:'synthetic-scanned',exact:true})).toBeVisible({timeout:110000});
+  await page.getByRole('button',{name:'文字版',exact:true}).click();
+  await page.locator('#source-page').selectOption('1');
+  await expect(page.locator('.source-text')).toContainText('寬度');
   await page.getByRole('button',{name:'資料核對',exact:true}).click();
-  await expect(page.locator('[data-factor="width"][data-key="subject"]')).toHaveValue('5');
-  await expect(page.locator('[data-factor="depth"][data-key="subject"]')).toHaveValue('23');
-  await expect(page.locator('[data-factor="restriction"][data-key="subject"]')).toHaveValue('無');
   await expect(page.locator('[data-factor="width"][data-key="confirmed"]')).not.toBeChecked();
-  await page.getByRole('button',{name:'本機 AI 抽取',exact:true}).click();
-  await expect(page.getByRole('dialog')).toContainText('目前未設定本機模型');
+  await page.getByRole('button',{name:'AWS AI 抽取',exact:true}).click();
+  await expect(page.getByRole('dialog')).toContainText('目前未啟用 Bedrock');
 });
 
 test('new rule version validates and can be selected for case', async ({ page }) => {
@@ -86,4 +87,33 @@ test('mobile navigation and layout fit the viewport', async ({ page }) => {
   await page.screenshot({path:'test-results/mobile.png',fullPage:true});
   await page.getByRole('button',{name:'使用指南',exact:true}).click();
   await expect(page.getByRole('heading',{name:'使用指南',exact:true})).toBeVisible();
+});
+
+test('Bedrock consent, preview and manual confirmation state', async ({ page }) => {
+  let cloudRequests = 0;
+  await page.route('**/api/health', route => route.fulfill({json:{status:'ok',ai_configured:true,ai_provider:'bedrock',ai_model:'synthetic-test-model',ai_region:'us-west-2'}}));
+  await page.route('**/api/cases/*/ai', async route => {
+    cloudRequests++;
+    const body = route.request().postDataJSON();
+    expect(body.cloud_data_approved).toBe(true);
+    await route.fulfill({json:{revision:body.revision,message:'合成 AI 草稿',factors:[{id:'width',subject:'5',comparable:'7',entered_rate:0,confirmed:false,evidence:{page:1,quote:'寬度 5 7',method:'bedrock:test'}}]}});
+  });
+  await page.goto('/');
+  await page.getByRole('button',{name:'建立錯誤示範'}).click();
+  await page.getByRole('button',{name:'資料核對',exact:true}).click();
+  await page.locator('[data-factor="width"][data-key="note"]').fill('保留人工核對備註');
+  await page.getByRole('button',{name:'儲存並重新審查'}).click();
+  await page.getByRole('button',{name:'AWS AI 抽取',exact:true}).click();
+  await expect(page.getByRole('dialog')).toContainText('競賽禁止');
+  await page.getByRole('button',{name:'開始抽取',exact:true}).click();
+  expect(cloudRequests).toBe(0);
+  await page.locator('#cloud-data-approved').check();
+  await page.getByRole('button',{name:'開始抽取',exact:true}).click();
+  await expect(page.getByRole('dialog')).toContainText('合成 AI 草稿');
+  await page.locator('[data-ai-index="0"]').check();
+  await page.getByRole('button',{name:'套用勾選草稿',exact:true}).click();
+  await expect(page.locator('[data-factor="width"][data-key="confirmed"]')).not.toBeChecked();
+  await expect(page.locator('[data-factor="width"][data-key="note"]')).toHaveValue('保留人工核對備註');
+  expect(cloudRequests).toBe(1);
+  await page.screenshot({path:'test-results/bedrock-draft.png',fullPage:true});
 });

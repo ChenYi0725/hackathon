@@ -23,6 +23,6 @@ module.exports = defineConfig({
     url: 'http://127.0.0.1:8011/api/health',
     reuseExistingServer: false,
     timeout: 30000,
-    env: { ...process.env, PORT: '8011', APP_DATA_DIR: path.join(__dirname, 'test-results', `db-${Date.now()}`), OLLAMA_MODEL: '' }
+    env: { ...process.env, PORT: '8011', APP_DATA_DIR: path.join(__dirname, 'test-results', `db-${Date.now()}`), BEDROCK_ENABLED: 'false' }
   }
 });

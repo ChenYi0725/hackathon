@@ -1,13 +1,17 @@
 from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app
+from app.interfaces.http import create_app
+from app.infrastructure.settings import Settings
+from app.infrastructure.text_pdf import read_pdf
 from app import store
 
 
 @pytest.fixture
 def client(tmp_path,monkeypatch):
-    monkeypatch.setattr(store,'DATA',tmp_path)
+    class FixturePdfReader:
+        def read(self, data): return read_pdf(data)
+    app = create_app(Settings(data_dir=tmp_path, ai_enabled=False), pdf=FixturePdfReader())
     with TestClient(app) as client:yield client
 
 
@@ -20,7 +24,7 @@ def test_full_review_fix_audit_export_and_reload(client):
     assert response.status_code==200
     updated=response.json()
     assert next(f for f in updated['case']['factors'] if f['id']=='road_width')['entered_rate']==5
-    assert client.post(f'/api/cases/{cid}/fix/road_width',json={'revision':current['case']['revision']}).status_code==400
+    assert client.post(f'/api/cases/{cid}/fix/road_width',json={'revision':current['case']['revision']}).status_code==409
     assert len(client.get(f'/api/cases/{cid}/audit').json())==2
     snapshot=client.get(f'/api/cases/{cid}/audit').json()[-1]['id']
     assert client.get(f'/api/cases/{cid}/audit/{snapshot}').json()['revision']==1
@@ -35,14 +39,16 @@ def test_update_validation_and_concurrency(client):
     data=client.get('/api/cases/'+c['id']).json()['case']
     original=data.copy();data['title']='修改標題'
     assert client.put('/api/cases/'+c['id'],json=data).status_code==200
-    assert client.put('/api/cases/'+c['id'],json=original).status_code==400
+    assert client.put('/api/cases/'+c['id'],json=original).status_code==409
     data=client.get('/api/cases/'+c['id']).json()['case']
     data['factors'].append(data['factors'][0])
     assert client.put('/api/cases/'+c['id'],json=data).status_code==400
 
 
 def test_pdf_upload_persistence_and_serving(client):
-    data=(store.ROOT/'查估書表範本.pdf').read_bytes()
+    path=Settings().reference('sample')
+    if path is None: pytest.skip('External reference PDF is not installed')
+    data=path.read_bytes()
     result=client.post('/api/documents?name=test.pdf',content=data,headers={'Content-Type':'application/pdf'})
     assert result.status_code==200,result.text
     case=result.json()['case'];assert case['totals']['individual']==13
