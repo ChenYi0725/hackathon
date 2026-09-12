@@ -268,5 +268,14 @@
     "pytest_passed": 1164,
     "pytest_skipped": 4,
     "playwright_passed": 11
+  },
+  "ec2_smoke": {
+    "ocr_seconds": 10.81,
+    "bedrock_seconds": 1.93,
+    "bedrock_tokens": 1906,
+    "agent_passed": 6,
+    "agent_aws_requests": 15,
+    "agent_tokens": 21625,
+    "credential_provider": "iam-role"
   }
 }
