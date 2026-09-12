@@ -2,6 +2,7 @@
 from app.application.drafts import parse_case
 from app.application.ports import FieldExtractor, PdfReader, ReviewRepository, RevisionConflict
 from app.domain.engine import review
+from app.domain.confirmation import invalidate_confirmations
 from app.domain.models import Case
 from app.domain.rule_validation import validate_ruleset
 from app.domain.sample import sample_case
@@ -41,7 +42,11 @@ class ReviewService:
 
     def save_case(self, case: Case, *, new=False):
         self.validate_case(case)
-        saved = self.repository.save_case(case, '建立或匯入案件' if new else '儲存欄位與重新審查', new=new)
+        previous = None if new else self.repository.get_case(case.id)
+        if previous is not None and previous.revision != case.revision:
+            raise RevisionConflict('案件已更新，請重新載入。')
+        candidate = invalidate_confirmations(previous, case)
+        saved = self.repository.save_case(candidate, '建立或匯入案件' if new else '儲存欄位與重新審查', new=new)
         return self.payload(saved)
 
     def create_sample(self, kind, document=None):
@@ -64,6 +69,7 @@ class ReviewService:
 
     def fix(self, case_id, check_id, revision):
         case = self.repository.get_case(case_id)
+        previous = case.model_copy(deep=True)
         if revision != case.revision:
             raise RevisionConflict('案件已更新，請重新載入。')
         result = review(case, self.repository.get_rules(case.ruleset_id))
@@ -81,7 +87,7 @@ class ReviewService:
             setattr(case.totals, item['total_field'], item['expected'])
         else:
             raise ValueError('請手動處理此項。')
-        return self.payload(self.repository.save_case(case, '採用建議：' + item['title']))
+        return self.payload(self.repository.save_case(invalidate_confirmations(previous, case), '採用建議：' + item['title']))
 
     def extract_ai(self, case_id, revision, cloud_data_approved=False):
         if cloud_data_approved is not True:
