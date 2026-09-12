@@ -51,7 +51,7 @@
 | DDD-04 | P0 | ports 與案件用例整合 | Application | DDD-02、DDD-03 | 待認領 | — |
 | DDD-05 | P0 | PDF 報告與原書表產製 | Infrastructure | DDD-04 | 待認領 | — |
 | DDD-06 | P0 | 多標的核對與 PDF 下載介面 | Interfaces／UI | DDD-04、DDD-05 | 待認領 | — |
-| DDD-07 | P1 | 具版本篩選及引用的依據檢索 | Infrastructure | DDD-04（v2）；本次先接 v1 | 待審查 | Codex／[PR #5](https://github.com/ChenYi0725/hackathon/pull/5) |
+| DDD-07 | P1 | 具版本篩選及引用的依據檢索 | Infrastructure | DDD-04（v2）；本次先接 v1 | 待審查 | Codex／`codex/agentic-rag`（基礎 RAG：已合併 PR #5） |
 | DDD-08 | P0 | 題目完整流程與回歸驗收 | Integration | DDD-05、DDD-06 | 待認領 | — |
 | DDD-09 | P2 | GraphRAG 對照評估 | Infrastructure＋Integration | DDD-07、DDD-08 | 待認領 | — |
 
