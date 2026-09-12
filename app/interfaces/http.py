@@ -35,16 +35,16 @@ class RagRequest(AiRequest):
     rule_ids: list[str] = Field(default_factory=list, max_length=100)
 
 
-def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=None, agent_model=None):
+def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=None, agent_model=None, public_data=None):
     @asynccontextmanager
     async def lifespan(app):
         app.state.settings = settings or Settings()
-        app.state.service = build_service(app.state.settings, pdf=pdf, ai=ai, retriever=retriever, answerer=answerer, agent_model=agent_model)
+        app.state.service = build_service(app.state.settings, pdf=pdf, ai=ai, retriever=retriever, answerer=answerer, agent_model=agent_model, public_data=public_data)
         if os.getenv('SEED_EXAMPLES', 'true').lower() == 'true':
             app.state.service.seed_examples(sample_document(app.state.settings))
         yield
 
-    app = FastAPI(title='地衡 · 估價審查工作台', version='1.1.0', lifespan=lifespan)
+    app = FastAPI(title='沒有錯的地方 · 估價審查工作台', version='1.1.0', lifespan=lifespan)
 
     def service():
         return app.state.service
@@ -97,6 +97,11 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
     @app.get('/api/cases/{cid}')
     def get_case(cid: str):
         return service().get_case(cid)
+
+    @app.delete('/api/cases/{cid}')
+    def delete_case(cid: str, body: RevisionRequest):
+        service().delete_case(cid, body.revision)
+        return {'deleted': cid}
 
     @app.put('/api/cases/{cid}')
     def update_case(cid: str, case: Case):

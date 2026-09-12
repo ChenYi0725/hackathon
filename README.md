@@ -1,4 +1,4 @@
-# 地衡 Landwise · PaddleOCR + Amazon Bedrock
+# 沒有錯的地方 · PaddleOCR + Amazon Bedrock
 
 本機估價審查工作台。上傳的 PDF 由 **PaddleOCR 在 CPU 辨識**；需要 AI 整理欄位時，使用 **Amazon Bedrock**。計算、級距與矩陣仍由確定性規則引擎執行，AI 回傳草稿須人工確認。
 
@@ -60,6 +60,8 @@ flowchart TB
 目前使用中文文字檢索基線，不使用向量或 GraphRAG。引用包含文件、頁碼、原文與版本；AI 不修改案件、不執行估價運算。完整操作、API 與限制見 [RAG 文件](docs/rag.md)。
 
 「Agent 自動查詢」使用 Bedrock Converse tool calling，自行選擇搜尋、讀取來源頁、查看規則或呼叫確定性審查。介面顯示工具紀錄與原始引擎結果，詳見 [Agentic RAG](docs/agentic-rag.md)。
+
+Agent 也可搜尋新北市官方資料集並透過 JSON API 取得公開資料，例如「搜尋地政局的實價 樹林資料集，讀取第一頁」。回應保留官方連結、原始資料與取得時間，未知欄位及歷史適用性仍需核對。詳見[新北市 API 串接與驗證](docs/ntpc-open-data.md)。
 
 ## 審查流程與競賽限制
 

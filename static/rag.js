@@ -7,7 +7,8 @@ export function setupRag({state,api,modal,esc,save}) {
   const currentCase={id:state.current.id,revision:state.current.revision,ruleset_id:state.current.ruleset_id};
   const rules=state.rulesets.find(r=>r.id===currentCase.ruleset_id);
   modal('依據問答',`<p>基準：${esc(rules.name)} / ${esc(rules.version)}。只檢索相同地區、用地與適用期間的文件；案件日期需為 YYYY-MM-DD 或民國 YYYMMDD。</p>
-   <label for="rag-question">想核對的規則或依據</label><textarea id="rag-question" maxlength="1000" placeholder="例如：面前道路寬度的級距如何規定？"></textarea>
+   <label for="rag-question">想核對的規則或依據</label><textarea id="rag-question" maxlength="1000" placeholder="例如：查詢新北市樹林區的官方公開資料，並說明資料來源與限制"></textarea>
+   <p>Agent 可查詢新北市地政、交通、教育等官方資料 API。公開資料會顯示取得時間與來源；資料是否適用案件日期仍需核對。</p>
    <p><label><input type="checkbox" id="rag-consent">我已確認問題、案件資料與來源文件符合上雲規範，不含個資或財務資訊。</label></p>
    <div class="actions"><button id="rag-search">本機查找來源</button><button id="rag-answer">AWS 生成說明</button><button id="rag-agent">Agent 自動查詢</button></div>
    <div id="rag-results" aria-live="polite"></div>
@@ -46,10 +47,12 @@ export function setupRag({state,api,modal,esc,save}) {
    if(generate&&!approved)throw new Error('請先確認問題與文件的上雲適用性。');
    output.textContent=agent?'Agent 正在選擇工具並查詢…':generate?'正在檢索並生成說明…':'正在本機查找來源…';
    const result=await api('/api/cases/'+currentCase.id+(agent?'/agent-evidence':'/evidence'),{method:'POST',body:JSON.stringify({revision:currentCase.revision,question,...(agent?{}:{generate}),cloud_data_approved:approved})});
-   const numbers=new Map(result.hits.map((h,i)=>[h.id,i+1]));
+   const publicSources=result.public_sources||[];
+   const numbers=new Map([...result.hits,...publicSources].map((h,i)=>[h.id,i+1]));
    output.innerHTML=`<p>${esc(result.message)}</p>${result.tool_trace?.length?`<p>工具紀錄：${result.tool_trace.map(t=>esc(t.tool)+'（'+esc(t.status)+'）').join(' → ')}</p>`:''}${result.review?`<details><summary>程式審查結果（版本 ${result.case_revision}）</summary><p>通過 ${result.review.counts.pass}／錯誤 ${result.review.counts.error}／待確認 ${result.review.counts.pending}／缺資料 ${result.review.counts.missing}</p>${result.review.checks.map(c=>`<p>${esc(c.title)}：${esc(c.message)}</p>`).join('')}</details>`:''}${result.status==='no_evidence'?'<p>找不到符合版本、日期與問題的來源。</p>':''}${result.status==='insufficient_evidence'?'<p>現有原文不足以回答，請人工核對或補充文件。</p>':''}
     ${result.statements.map(s=>`<p>${esc(s.text)} ${s.citation_ids.map(id=>`<a href="#rag-cite-${esc(id)}">[${numbers.get(id)}]</a>`).join('')}</p>`).join('')}
-    ${result.hits.map((h,i)=>`<article id="rag-cite-${esc(h.id)}"><h4>[${i+1}] ${esc(h.document_name)} · 第 ${h.source.page} 頁</h4><p>基準版本 ${esc(h.ruleset_version)} · ${esc(h.valid_from)}～${esc(h.valid_to)}</p><blockquote style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(h.source.quote)}</blockquote><a target="_blank" rel="noopener" href="/api/documents/${encodeURIComponent(h.source.document_id)}/file#page=${h.source.page}">查看原始 PDF</a></article>`).join('')}`;
+    ${result.hits.map((h,i)=>`<article id="rag-cite-${esc(h.id)}"><h4>[${i+1}] ${esc(h.document_name)} · 第 ${h.source.page} 頁</h4><p>基準版本 ${esc(h.ruleset_version)} · ${esc(h.valid_from)}～${esc(h.valid_to)}</p><blockquote style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(h.source.quote)}</blockquote><a target="_blank" rel="noopener" href="/api/documents/${encodeURIComponent(h.source.document_id)}/file#page=${h.source.page}">查看原始 PDF</a></article>`).join('')}
+    ${publicSources.map(h=>`<article id="rag-cite-${esc(h.id)}"><h4>[${numbers.get(h.id)}] ${esc(h.title)} · 官方 API</h4><p>取得時間 ${esc(h.fetched_at)} · 分頁 ${esc(h.page)}（從 0 起算）</p><p>${esc(h.message)}</p><blockquote style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(h.quote)}</blockquote>${/^https:\/\/data\.ntpc\.gov\.tw\/api\/datasets\/[0-9a-f-]+\/json\?/.test(h.source_url)?`<a target="_blank" rel="noopener noreferrer" href="${esc(h.source_url)}">查看官方 API 原始資料</a>`:''}</article>`).join('')}`;
   }
   root.querySelector('#rag-search').onclick=()=>run(()=>query(false));
   root.querySelector('#rag-answer').onclick=()=>run(()=>query(true));

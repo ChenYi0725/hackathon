@@ -4,6 +4,7 @@ import json
 from app.application.ports import ExtractionUnavailable, RevisionConflict, ReviewRepository, EvidenceRetriever, AgentModel
 from app.application.agent_contracts import TOOL_INPUTS, ToolResult, tool_catalog
 from app.application.rag_contracts import EvidenceQuery
+from app.application.open_data import OpenDataProvider, OpenDataUnavailable
 from app.domain.applicability import require_ruleset_scope, valuation_day
 from app.domain.engine import review
 
@@ -12,8 +13,10 @@ MAX_TOOLS = 8
 
 
 class AgenticRagService:
-    def __init__(self, repository: ReviewRepository, retriever: EvidenceRetriever, model: AgentModel):
+    def __init__(self, repository: ReviewRepository, retriever: EvidenceRetriever, model: AgentModel,
+                 public_data: OpenDataProvider | None = None):
         self.repository, self.retriever, self.model = repository, retriever, model
+        self.public_data = public_data
 
     def query(self, case_id, revision, question, cloud_data_approved=False):
         if cloud_data_approved is not True:
@@ -28,12 +31,29 @@ class AgenticRagService:
                 raise RevisionConflict('Agent 查詢期間案件已更新，請重新查詢。')
         check_revision()
         hits, trace, history, seen_calls = {}, [], [], set()
+        public_sources, datasets = {}, {}
         calculation = None
         context = dict(question=scope.question, case_revision=revision, ruleset_id=rules['id'], ruleset_version=rules['version'],
+                       locality=scope.locality, land_use=scope.land_use, valuation_date=str(scope.valuation_date),
                        factors=[dict(id=r['id'], name=r['name']) for r in rules['rules']])
 
         def execute(name, args):
             nonlocal calculation
+            if name == 'search_public_datasets' and self.public_data is not None:
+                result = self.public_data.search(args)
+                datasets.update((d['dataset_id'], d) for d in result['datasets'])
+                return result
+            if name == 'read_public_dataset' and self.public_data is not None:
+                dataset = datasets.get(args.dataset_id.lower())
+                if dataset is None:
+                    raise ValueError('請先搜尋本次需要的官方資料集。')
+                result = self.public_data.read(args)
+                result['title'] = dataset['title']
+                if result['records']:
+                    public_sources[result['id']] = result
+                else:
+                    result.pop('id', None)
+                return result
             if name == 'search_evidence':
                 found = self.retriever.retrieve(scope.model_copy(update={'question': args.question}))
                 hits.update((h.id, h) for h in found)
@@ -71,18 +91,19 @@ class AgenticRagService:
 
         for _ in range(MAX_TURNS):
             check_revision()
-            turn = self.model.next_turn(context, history, tool_catalog())
+            turn = self.model.next_turn(context, history, tool_catalog(public_data=self.public_data is not None))
             check_revision()
             if turn.calls and turn.answer is not None:
                 raise ExtractionUnavailable('模型同時回傳工具與答案，請重試。')
             if not turn.calls:
                 draft = turn.answer
-                if draft is None or any(not set(s.citation_ids).issubset(hits) for s in draft.statements):
+                if draft is None or any(not set(s.citation_ids).issubset(set(hits) | set(public_sources)) for s in draft.statements):
                     raise ExtractionUnavailable('Agent 未提供有效來源引用，請使用本機查找。')
                 statements = [] if draft.insufficient_evidence else [s.model_dump() for s in draft.statements]
                 return dict(case_revision=revision, ruleset_id=rules['id'], ruleset_version=rules['version'],
                             status='draft' if statements else 'insufficient_evidence', statements=statements,
                             hits=[h.model_dump(mode='json') for h in hits.values()], tool_trace=trace, review=calculation,
+                            public_sources=list(public_sources.values()),
                             message='Agent 說明為待核對草稿；下方審查結果由確定性引擎產生。')
             if len(trace)+len(turn.calls)>MAX_TOOLS:
                 raise ExtractionUnavailable('Agent 已達工具次數上限，請縮小問題範圍。')
@@ -98,9 +119,14 @@ class AgenticRagService:
                         raise ValueError('未開放的工具。')
                     args=model.model_validate(call.arguments)
                     data=execute(call.name,args)
+                    check_revision()
                     if len(json.dumps(data,ensure_ascii=False))>24000:
                         raise ValueError('工具結果過大，請縮小查詢。')
                     status='success'
+                except RevisionConflict:
+                    raise
+                except OpenDataUnavailable as error:
+                    status='error';data=dict(error=str(error), retryable=True)
                 except (ValueError, KeyError):
                     status='error';data=dict(error='工具或參數無效，請依工具定義與已取得來源修正。')
                 results.append(ToolResult(id=call.id,status=status,data=data).model_dump())

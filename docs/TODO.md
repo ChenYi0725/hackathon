@@ -54,6 +54,8 @@
 | DDD-07 | P1 | 具版本篩選及引用的依據檢索 | Infrastructure | DDD-04（v2）；本次先接 v1 | 待審查 | Codex／[PR #6](https://github.com/ChenYi0725/hackathon/pull/6)（基礎 RAG：已合併 PR #5） |
 | DDD-08 | P0 | 題目完整流程與回歸驗收 | Integration | DDD-05、DDD-06 | 進行中（Agent 切片待審查） | Codex／[PR #8](https://github.com/ChenYi0725/hackathon/pull/8) |
 | DDD-09 | P2 | GraphRAG 對照評估 | Infrastructure＋Integration | DDD-07、DDD-08 | 待認領 | — |
+| DDD-10 | P1 | 新北市官方 API 探索與 Agent 唯讀查詢 | Application＋Infrastructure＋Interfaces／UI | 既有 Agent 工具迴圈 | 待審查（本機實作） | Codex／[範圍與驗收](ntpc-open-data.md)；尚未建立 PR |
+| DDD-11 | P1 | 最近案件刪除 | Application＋Infrastructure＋Interfaces／UI | 既有 v1 案件儲存 | 待審查（本機實作） | Codex／[範圍與驗收](case-deletion.md)；未共用的本機 PDF／OCR 隨案件刪除 |
 
 合併順序：DDD-00 → DDD-01 → DDD-02／DDD-03 → DDD-04 → DDD-05／DDD-07；DDD-05 完成後接 DDD-06、DDD-08。斜線兩側可由不同開發者分別實作。DDD-09 不阻擋主要估價審查流程。
 

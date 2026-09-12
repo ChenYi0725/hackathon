@@ -55,6 +55,54 @@ class SQLiteReviewRepository:
         with self.db() as c:
             return [(Case.model_validate_json(r['body']), r['updated']) for r in c.execute('SELECT body,updated FROM cases ORDER BY updated DESC')]
 
+    def has_case_history(self):
+        with self.db() as c:
+            return c.execute('SELECT 1 FROM audit LIMIT 1').fetchone() is not None
+
+    def delete_case(self, case_id, revision):
+        # Keep a deletion audit tombstone so deleted seeded cases are not recreated.
+        # Remove the case's private source document after the transaction commits;
+        # shared documents remain available to the cases/evidence that reference them.
+        document_path = None
+        with self.db() as c:
+            c.execute('BEGIN IMMEDIATE')
+            row = c.execute('SELECT body FROM cases WHERE id=?', (case_id,)).fetchone()
+            if not row:
+                raise KeyError(case_id)
+            if json.loads(row['body'])['revision'] != revision:
+                raise RevisionConflict('案件已被其他操作更新，請重新載入後再刪除。')
+            body = json.loads(row['body'])
+            document_id = body.get('document_id')
+            c.execute('DELETE FROM cases WHERE id=?', (case_id,))
+            # Purge prior revision snapshots; retain only an empty tombstone so
+            # startup does not reseed a case that the user explicitly deleted.
+            c.execute('DELETE FROM audit WHERE case_id=?', (case_id,))
+            c.execute('INSERT INTO audit(case_id,action,at,snapshot) VALUES (?,?,?,?)',
+                      (case_id, '刪除案件', now(), '{}'))
+            if document_id:
+                referenced = any(
+                    json.loads(other['body']).get('document_id') == document_id
+                    for other in c.execute('SELECT body FROM cases')
+                )
+                evidence = c.execute(
+                    'SELECT 1 FROM evidence_documents WHERE document_id=? LIMIT 1',
+                    (document_id,),
+                ).fetchone()
+                if not referenced and not evidence:
+                    doc = c.execute('SELECT path FROM documents WHERE id=?', (document_id,)).fetchone()
+                    if doc:
+                        document_path = Path(doc['path'])
+                    c.execute('DELETE FROM documents WHERE id=?', (document_id,))
+        if document_path:
+            # Paths are generated under uploads by this adapter. Resolve before
+            # unlinking so a malformed legacy row cannot escape the data directory.
+            uploads = (self.data_dir / 'uploads').resolve()
+            try:
+                document_path.resolve().relative_to(uploads)
+            except ValueError:
+                return
+            document_path.unlink(missing_ok=True)
+
     def get_case(self, case_id):
         with self.db() as c:
             row = c.execute('SELECT body FROM cases WHERE id=?', (case_id,)).fetchone()
@@ -124,6 +172,7 @@ class SQLiteReviewRepository:
             return [dict(r) for r in c.execute('SELECT id,action,at FROM audit WHERE case_id=? ORDER BY id DESC', (case_id,))]
 
     def snapshot(self, case_id, audit_id):
+        self.get_case(case_id)
         with self.db() as c:
             row = c.execute('SELECT snapshot FROM audit WHERE case_id=? AND id=?', (case_id, audit_id)).fetchone()
         if not row:

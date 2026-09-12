@@ -4,6 +4,8 @@
 
 ## 依 Codebase 選出的四個工具
 
+以下為原有四個本機工具。現在另有兩個新北市官方 API 工具：`search_public_datasets` 與 `read_public_dataset`，由 OpenDataProvider 提供，操作與限制見[新北市 API](ntpc-open-data.md)。公開資料可用本次非空讀取結果的 ID 作引用，回傳於 `public_sources`，不冒充 PDF 或案件基準。
+
 | Function | 對應現有程式 | 用途與邊界 |
 | --- | --- | --- |
 | search_evidence(question) | EvidenceRetriever → LocalEvidenceRetriever.retrieve | 改寫查詢、搜尋已上傳且適用本案的來源；基準、地區、日期由後端固定 |

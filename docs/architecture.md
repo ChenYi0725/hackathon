@@ -76,3 +76,5 @@ AWS 主機的對外存取、登入、備份與多機協調尚未在本次部署�
 ## Agentic RAG
 
 `AgenticRagService` 讓模型透過 `AgentModel` 選擇四個已註冊函式：搜尋、來源讀頁、查看規則及 domain 審查。Bedrock adapter 負責原生 toolUse／toolResult；工具由 application 執行，不讓模型直接操作 Python 或資料庫。迴圈受 revision、工具白名單、引用驗證及次數限制。詳見 [Agentic RAG](agentic-rag.md)。
+
+另由 `bootstrap.py` 注入 `OpenDataProvider` 的 `NtpcOpenData` adapter，增加官方資料集搜尋與 JSON 分頁讀取兩個工具。公開資料以 `public_sources` 附來源與取得時間，與案件基準 PDF 引用分開保存於本次查詢結果；不寫入案件或 schema，也不決定歷史適用性。詳見[新北市 API](ntpc-open-data.md)。

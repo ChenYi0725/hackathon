@@ -10,15 +10,17 @@ from app.infrastructure.paddle_pdf import PaddlePdfReader
 from app.infrastructure.persistence import SQLiteReviewRepository
 from app.infrastructure.text_pdf import read_pdf
 from app.infrastructure.form_exports import TemplateFormRenderer
+from app.infrastructure.ntpc_open_data import NtpcOpenData
 
 
-def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None, agent_model=None):
+def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None, agent_model=None, public_data=None):
     repository = SQLiteReviewRepository(settings.data_dir)
     repository.initialize()
     pdf_reader = pdf or PaddlePdfReader(settings, repository)
     transport = BedrockFieldExtractor(settings, repository)
     retrieval = retriever or LocalEvidenceRetriever(repository)
-    agent = AgenticRagService(repository, retrieval, agent_model or BedrockAgentModel(transport))
+    agent = AgenticRagService(repository, retrieval, agent_model or BedrockAgentModel(transport),
+                            public_data=public_data if public_data is not None else NtpcOpenData())
     rag = RagService(repository, pdf_reader, retrieval, answerer or BedrockEvidenceAnswerer(transport), agent=agent)
     return ReviewService(repository, pdf_reader, ai or transport, rag=rag,
                          renderer=TemplateFormRenderer(settings.form_template_dir))

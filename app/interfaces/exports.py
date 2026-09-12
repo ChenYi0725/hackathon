@@ -41,7 +41,7 @@ def export_case(case, result, rules, kind: str, generated_at: str):
         content+='<h2>表 4 · 計算欄位</h2><table>'+''.join(f'<tr><td>{esc(k)}</td><td>{esc(v)}</td></tr>' for k,v in case.totals.model_dump().items())+'</table><p>此為整理書表，未覆寫原始 PDF 或套印官方格式。</p>'
     doc=f'''<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>{esc(case.title)}</title>
     <style>body{{font-family:system-ui,sans-serif;max-width:1100px;margin:40px auto;color:#183b38;padding:0 20px}}h1{{font-size:26px}}h2{{font-size:18px;margin-top:32px}}table{{border-collapse:collapse;width:100%;font-size:12px}}td,th{{border:1px solid #ccc;padding:9px;text-align:left}}th{{background:#eef4f1}}.notice{{background:#fff4db;padding:16px}}button{{padding:12px}}@media print{{button{{display:none}}tr{{break-inside:avoid}}thead{{display:table-header-group}}}}</style>
-    <h1>地衡 · {esc(case.title)}</h1>
+    <h1>沒有錯的地方 · {esc(case.title)}</h1>
     <p>案號 {esc(case.case_number)} · 基準日 {esc(case.valuation_date)} · 案件版本 {case.revision}</p>
     <p>比準地：{esc(case.subject_name)} ／ 比較標的：{esc(case.comparable_name)}</p>
     <p>基準：{esc(result['ruleset_id'])} / {esc(result['ruleset_version'])}</p>

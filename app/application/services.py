@@ -33,7 +33,7 @@ class ReviewService:
         return artifact
 
     def seed_examples(self, document=None):
-        if self.repository.list_cases():
+        if self.repository.list_cases() or self.repository.has_case_history():
             return
         document_id = self.repository.save_document(*document) if document else None
         for demo in (False, True):
@@ -48,9 +48,12 @@ class ReviewService:
         return self.payload(self.repository.get_case(case_id))
 
     def list_cases(self):
-        return [dict(id=case.id, title=case.title, case_number=case.case_number, demo=case.demo,
+        return [dict(id=case.id, revision=case.revision, title=case.title, case_number=case.case_number, demo=case.demo,
                      updated=updated, counts=self.payload(case)['review']['counts'], source_kind=case.source_kind)
                 for case, updated in self.repository.list_cases()]
+
+    def delete_case(self, case_id, revision):
+        self.repository.delete_case(case_id, revision)
 
     def validate_case(self, case):
         self.repository.get_rules(case.ruleset_id)
