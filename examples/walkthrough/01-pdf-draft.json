@@ -1,0 +1,789 @@
+{
+  "id": "",
+  "revision": 0,
+  "title": "教學練習｜PDF 抽取草稿",
+  "case_number": "1140901-99-001",
+  "valuation_date": "1140901",
+  "subject_name": "新北市金山區金美段489地號",
+  "comparable_name": "新北市金山區溫泉段218地號",
+  "subject_section": "P002-00",
+  "comparable_section": "P002-00",
+  "locality": "新北市金山區",
+  "land_use": "商業用地",
+  "ruleset_id": "jinshan-commercial-v1",
+  "document_id": null,
+  "demo": false,
+  "source_kind": "pdf",
+  "factors": [
+    {
+      "id": "area",
+      "subject": "113.21",
+      "comparable": "111.85",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "7面積(M2)                      113.21                    111.85          0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "width",
+      "subject": "5",
+      "comparable": "7",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "8寬度(M)                        5                         7              0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "depth",
+      "subject": "23",
+      "comparable": "16",
+      "entered_rate": 1.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "1   9深度(M)                        23                        16             1.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "shape",
+      "subject": "方形",
+      "comparable": "方形",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "宗地   10形狀                         方形                        方形              0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "frontage",
+      "subject": "單面臨街",
+      "comparable": "單面臨街",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "條件   11臨街情形                      單面臨街                      單面臨街             0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "terrain",
+      "subject": "平坦",
+      "comparable": "平坦",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "12地勢                         平坦                        平坦              0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "road_type",
+      "subject": "主要道路",
+      "comparable": "次要道路",
+      "entered_rate": 2.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "2  13道路種類                    主要道路                      次要道路               2.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "road_width",
+      "subject": "18",
+      "comparable": "6",
+      "entered_rate": 5.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "道路   14面前道路寬度                   中山路    18    M           金包里街     6     M   5.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "school",
+      "subject": "150",
+      "comparable": "100",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "個       15接近學校之程度                 金山國小    150   M           金山國小    100    M   0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "market",
+      "subject": "30",
+      "comparable": "92",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "別   3   16接近市場之程度                 金山市場    30    M           金山市場     92    M   0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "park",
+      "subject": "190",
+      "comparable": "200",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "因       17接近公園、廣場之程度           中山溫泉公園     190   M        中山溫泉公園     200    M   0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "station",
+      "subject": "80",
+      "comparable": "190",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "調  條件   18接近車站之程度              金山區公所站     80    M        金山區公所站     190    M   0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "business",
+      "subject": "0",
+      "comparable": "0",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "整       19接近商圈之程度                 老街商圈     0    M           老街商圈     0     M   0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "nuisance",
+      "subject": "260",
+      "comparable": "80",
+      "entered_rate": 3.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "4  20嫌惡設施(類型)             金山第一公墓     260   M        金山第一公墓      80    M   3.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "parking",
+      "subject": "可路邊停車",
+      "comparable": "不可路邊停車",
+      "entered_rate": 2.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "周邊環  21停車方便性                    可路邊停車                    不可路邊停車             2.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "zoning",
+      "subject": "第二種商業區",
+      "comparable": "第二種商業區",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "22使用分區或編定用地               第二種商業區                    第二種商業區             0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "coverage",
+      "subject": "70",
+      "comparable": "70",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "5   23建蔽率(%)                     70%                        70%            0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "far",
+      "subject": "240",
+      "comparable": "240",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "行政   24容積率(%)                     240%                      240%            0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "restriction",
+      "subject": "無",
+      "comparable": "無",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "25有無禁限建",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_plan",
+      "subject": "都市計畫內",
+      "comparable": "都市計畫內",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "都市計畫（內、外） 優 / 優 / 0.00%；表 1：都市計畫(內外)           都市計畫內",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_zoning",
+      "subject": "第二種商業區",
+      "comparable": "第二種商業區",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "使用分區(使用地類別) 優 / 優 / 0.00%；表 1：使用分區(使用地類別)        第二種商業區",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_coverage",
+      "subject": "70",
+      "comparable": "70",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "建蔽率 優 / 優 / 0.00%；表 1：建　蔽　率              70%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_far",
+      "subject": "240",
+      "comparable": "240",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "土地使用  容積率 優 / 優 / 0.00%；表 1：容　積　率              240%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_ban",
+      "subject": "無",
+      "comparable": "無",
+      "entered_rate": 0.0,
+      "subject_grade": "無",
+      "comparable_grade": "無",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "管制(1) 有無禁止建築 無 / 無 / 0.00%；表 1：有無禁止建築             無",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_restriction",
+      "subject": "無",
+      "comparable": "無",
+      "entered_rate": 0.0,
+      "subject_grade": "無",
+      "comparable_grade": "無",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "有無限制建築（整體開發、面 無 / 無 / 0.00%；表 1：有無限制建築(整體開發、面      無",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_road_width",
+      "subject": "18",
+      "comparable": "18",
+      "entered_rate": 0.0,
+      "subject_grade": "普通",
+      "comparable_grade": "普通",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "主要道路寬度 普通 / 普通 / 0.00%；表 1：主要道路         名稱：中山路               寬度：　18",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_avg_width",
+      "subject": "12",
+      "comparable": "12",
+      "entered_rate": 0.0,
+      "subject_grade": "普通",
+      "comparable_grade": "普通",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "區段內道路平均寬度 普通 / 普通 / 0.00%；表 1：區段內道路平均寬度     　12",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_station",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "接近大型車站之程度 優 / 優 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_bus",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "交通運輸  站牌之接近程度或密集程度 優 / 優 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_interchange",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "劣",
+      "comparable_grade": "劣",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "程度 劣 / 劣 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_development",
+      "subject": "已完全開發",
+      "comparable": "已完全開發",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "區段內道路規劃及闢建程度 優 / 優 / 0.00%；表 1：區段內道路規劃及闢建程度              已完全開發",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_drainage",
+      "subject": "有排水系統不易淹水",
+      "comparable": "有排水系統不易淹水",
+      "entered_rate": 0.0,
+      "subject_grade": "稍優",
+      "comparable_grade": "稍優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "自然條件  排水之良否 稍優 / 稍優 / 0.00%；表 1：有排水系統不易淹水",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_terrain",
+      "subject": "該區地勢平坦",
+      "comparable": "該區地勢平坦",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "(3) 地勢 優 / 優 / 0.00%；表 1：該區地勢平坦",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_market",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "接近市場之程度（傳統市場、 優 / 優 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_park",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "公共建設  接近公園（里鄰公園、一般公 優 / 優 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_tourism",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "接近觀光遊憩設施之程度 優 / 優 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_parking",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "稍優",
+      "comparable_grade": "稍優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "停車場地之便利程度 稍優 / 稍優 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_utility",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "劣",
+      "comparable_grade": "劣",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "電業設施及公用氣體燃料設施 劣 / 劣 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_funeral",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "劣",
+      "comparable_grade": "劣",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "特殊設施  殯葬設施之有無及接近程度 劣 / 劣 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_waste",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "(5) 廢棄物處理設施之有無及接近 優 / 優 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_pollution",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "環境污染  染、廢棄物污染等之有無及接 優 / 優 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_department",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "劣",
+      "comparable_grade": "劣",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "百貨公司之有無、數量、接近 劣 / 劣 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_bank",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "稍優",
+      "comparable_grade": "稍優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "金融機構之有無、數量、接近 稍優 / 稍優 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_entertainment",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "劣",
+      "comparable_grade": "劣",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "工商活動  娛樂設施之有無、數量、接近 劣 / 劣 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_hotel",
+      "subject": null,
+      "comparable": null,
+      "entered_rate": 0.0,
+      "subject_grade": "普通",
+      "comparable_grade": "普通",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 2,
+        "quote": "大型展示中心或觀光飯店之有 普通 / 普通 / 0.00%",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_customers",
+      "subject": "顧客通行量多",
+      "comparable": "顧客通行量多",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "顧客通行量之多寡 優 / 優 / 0.00%；表 1：顧客通行量多",
+        "method": "layout-parser"
+      }
+    },
+    {
+      "id": "r_shops",
+      "subject": "90",
+      "comparable": "90",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": false,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "店舖之毗連狀態 優 / 優 / 0.00%；表 1：店鋪之毗連狀態       90%",
+        "method": "layout-parser"
+      }
+    }
+  ],
+  "totals": {
+    "regional_detail": 0.0,
+    "regional_carried": 0.0,
+    "individual": 13.0,
+    "absolute": 15.0,
+    "time_rate": 2.0,
+    "normal_price": 184763.0,
+    "adjusted_price": 188459.0,
+    "trial_price": 212958.0,
+    "weight": 100.0
+  },
+  "totals_confirmed": false,
+  "notes": "",
+  "extraction_warnings": [
+    "匯入內容尚未確認；請核對原文後勾選確認。",
+    "目前支援提供範本的單一比較標的版型；不同版型或多比較標的請人工整理後匯入 JSON。",
+    "表 1 跨欄設施與勾選符號保留人工核對；同區段才將已抽取區域條件套用雙方。"
+  ]
+}

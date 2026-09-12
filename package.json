@@ -1,0 +1,13 @@
+{
+  "name": "landwise-review",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser end-to-end tests; the application itself needs no npm build.",
+  "scripts": {
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "pptxgenjs": "^4.0.1"
+  }
+}

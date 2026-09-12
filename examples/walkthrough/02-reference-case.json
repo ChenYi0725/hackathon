@@ -1,0 +1,785 @@
+{
+  "id": "",
+  "revision": 0,
+  "title": "教學對照｜原始範例審查答案",
+  "case_number": "1140901-99-001",
+  "valuation_date": "1140901",
+  "subject_name": "金美段 489 地號",
+  "comparable_name": "溫泉段 218 地號",
+  "subject_section": "P002-00",
+  "comparable_section": "P002-00",
+  "locality": "新北市金山區",
+  "land_use": "商業用地",
+  "ruleset_id": "jinshan-commercial-v1",
+  "document_id": null,
+  "demo": false,
+  "source_kind": "curated",
+  "factors": [
+    {
+      "id": "area",
+      "subject": "113.21",
+      "comparable": "111.85",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "面積：比準地 113.21；比較標的 111.85；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "width",
+      "subject": "5",
+      "comparable": "7",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "寬度：比準地 5；比較標的 7；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "depth",
+      "subject": "23",
+      "comparable": "16",
+      "entered_rate": 1.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "深度：比準地 23；比較標的 16；差異率 1%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "shape",
+      "subject": "方形",
+      "comparable": "方形",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "形狀：比準地 方形；比較標的 方形；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "frontage",
+      "subject": "單面臨街",
+      "comparable": "單面臨街",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "臨街情形：比準地 單面臨街；比較標的 單面臨街；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "terrain",
+      "subject": "平坦",
+      "comparable": "平坦",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "地勢：比準地 平坦；比較標的 平坦；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "road_type",
+      "subject": "主要道路",
+      "comparable": "次要道路",
+      "entered_rate": 2.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "道路種類：比準地 主要道路；比較標的 次要道路；差異率 2%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "road_width",
+      "subject": "18",
+      "comparable": "6",
+      "entered_rate": 5.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "面前道路寬度：比準地 18；比較標的 6；差異率 5%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "school",
+      "subject": "150",
+      "comparable": "100",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "接近學校之程度：比準地 150；比較標的 100；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "market",
+      "subject": "30",
+      "comparable": "92",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "接近市場之程度：比準地 30；比較標的 92；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "park",
+      "subject": "190",
+      "comparable": "200",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "接近公園、廣場之程度：比準地 190；比較標的 200；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "station",
+      "subject": "80",
+      "comparable": "190",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "接近車站之程度：比準地 80；比較標的 190；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "business",
+      "subject": "0",
+      "comparable": "0",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "接近商圈之程度：比準地 0；比較標的 0；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "nuisance",
+      "subject": "260",
+      "comparable": "80",
+      "entered_rate": 3.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "嫌惡設施：比準地 260；比較標的 80；差異率 3%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "parking",
+      "subject": "可路邊停車",
+      "comparable": "不可路邊停車",
+      "entered_rate": 2.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "停車方便性：比準地 可路邊停車；比較標的 不可路邊停車；差異率 2%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "zoning",
+      "subject": "第二種商業區",
+      "comparable": "第二種商業區",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "使用分區或編定用地：比準地 第二種商業區；比較標的 第二種商業區；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "coverage",
+      "subject": "70",
+      "comparable": "70",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "建蔽率：比準地 70；比較標的 70；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "far",
+      "subject": "240",
+      "comparable": "240",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "容積率：比準地 240；比較標的 240；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "restriction",
+      "subject": "無",
+      "comparable": "無",
+      "entered_rate": 0.0,
+      "subject_grade": null,
+      "comparable_grade": null,
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 3,
+        "quote": "有無禁限建：比準地 無；比較標的 無；差異率 0%",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_plan",
+      "subject": "都市計畫內",
+      "comparable": "都市計畫內",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "都市計畫內外：都市計畫內；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_zoning",
+      "subject": "第二種商業區",
+      "comparable": "第二種商業區",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "使用分區：第二種商業區；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_coverage",
+      "subject": "70",
+      "comparable": "70",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "建蔽率：70；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_far",
+      "subject": "240",
+      "comparable": "240",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "容積率：240；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_ban",
+      "subject": "無",
+      "comparable": "無",
+      "entered_rate": 0.0,
+      "subject_grade": "無",
+      "comparable_grade": "無",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "有無禁止建築：無；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_restriction",
+      "subject": "無",
+      "comparable": "無",
+      "entered_rate": 0.0,
+      "subject_grade": "無",
+      "comparable_grade": "無",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "有無限制建築：無；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_road_width",
+      "subject": "18",
+      "comparable": "18",
+      "entered_rate": 0.0,
+      "subject_grade": "普通",
+      "comparable_grade": "普通",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "主要道路寬度：18；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_avg_width",
+      "subject": "12",
+      "comparable": "12",
+      "entered_rate": 0.0,
+      "subject_grade": "普通",
+      "comparable_grade": "普通",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "區段內道路平均寬度：12；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_station",
+      "subject": "300",
+      "comparable": "300",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "接近大型車站之程度：300；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_bus",
+      "subject": "區段內有",
+      "comparable": "區段內有",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "站牌之接近程度：區段內有；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_interchange",
+      "subject": "無",
+      "comparable": "無",
+      "entered_rate": 0.0,
+      "subject_grade": "劣",
+      "comparable_grade": "劣",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "接近交流道之程度：無；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_development",
+      "subject": "已完全開發",
+      "comparable": "已完全開發",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "道路規劃及闢建程度：已完全開發；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_drainage",
+      "subject": "有排水系統不易淹水",
+      "comparable": "有排水系統不易淹水",
+      "entered_rate": 0.0,
+      "subject_grade": "稍優",
+      "comparable_grade": "稍優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "排水之良否：有排水系統不易淹水；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_terrain",
+      "subject": "該區地勢平坦",
+      "comparable": "該區地勢平坦",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "地勢：該區地勢平坦；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_market",
+      "subject": "區段內有",
+      "comparable": "區段內有",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "接近市場之程度：區段內有；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_park",
+      "subject": "區段內有",
+      "comparable": "區段內有",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "接近公園廣場之程度：區段內有；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_tourism",
+      "subject": "區段內有",
+      "comparable": "區段內有",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "接近觀光遊憩設施之程度：區段內有；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_parking",
+      "subject": "120",
+      "comparable": "120",
+      "entered_rate": 0.0,
+      "subject_grade": "稍優",
+      "comparable_grade": "稍優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "停車場地之便利程度：120；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_utility",
+      "subject": "440",
+      "comparable": "440",
+      "entered_rate": 0.0,
+      "subject_grade": "劣",
+      "comparable_grade": "劣",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "電業及氣體燃料設施：440；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_funeral",
+      "subject": "80",
+      "comparable": "80",
+      "entered_rate": 0.0,
+      "subject_grade": "劣",
+      "comparable_grade": "劣",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "殯葬設施：80；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_waste",
+      "subject": "無",
+      "comparable": "無",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "廢棄物處理設施：無；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_pollution",
+      "subject": "無",
+      "comparable": "無",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "環境污染：無；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_department",
+      "subject": "無",
+      "comparable": "無",
+      "entered_rate": 0.0,
+      "subject_grade": "劣",
+      "comparable_grade": "劣",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "百貨公司：無；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_bank",
+      "subject": "210",
+      "comparable": "210",
+      "entered_rate": 0.0,
+      "subject_grade": "稍優",
+      "comparable_grade": "稍優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "金融機構：210；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_entertainment",
+      "subject": "無",
+      "comparable": "無",
+      "entered_rate": 0.0,
+      "subject_grade": "劣",
+      "comparable_grade": "劣",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "娛樂設施：無；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_hotel",
+      "subject": "850",
+      "comparable": "850",
+      "entered_rate": 0.0,
+      "subject_grade": "普通",
+      "comparable_grade": "普通",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "大型展示中心或觀光飯店：850；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_customers",
+      "subject": "顧客通行量多",
+      "comparable": "顧客通行量多",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "顧客通行量：顧客通行量多；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    },
+    {
+      "id": "r_shops",
+      "subject": "90",
+      "comparable": "90",
+      "entered_rate": 0.0,
+      "subject_grade": "優",
+      "comparable_grade": "優",
+      "confirmed": true,
+      "exempt": false,
+      "note": "",
+      "evidence": {
+        "page": 1,
+        "quote": "店舖毗連比例：90；表 5-2 比較雙方同為 P002-00 區段。",
+        "method": "curated"
+      }
+    }
+  ],
+  "totals": {
+    "regional_detail": 0.0,
+    "regional_carried": 0.0,
+    "individual": 13.0,
+    "absolute": 15.0,
+    "time_rate": 2.0,
+    "normal_price": 184763.0,
+    "adjusted_price": 188459.0,
+    "trial_price": 212958.0,
+    "weight": 100.0
+  },
+  "totals_confirmed": true,
+  "notes": "依提供範本人工整理。僅選一筆比較標的之理由見原表 4 全案備註。區域設施採相關設施最近距離；原始 PDF 為證據來源。 本檔為教學對照資料，非主辦方官方標準答案；保留基準疑點與價格精度待確認項目。",
+  "extraction_warnings": []
+}
