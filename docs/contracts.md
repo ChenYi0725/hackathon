@@ -1,4 +1,4 @@
-# 共用契約 1.1：確認失效與目標資料模型（DDD-00）
+# 共用契約 1.2：確認失效與目標資料模型（DDD-00）
 
 本文件是 Domain、Application、Infrastructure 與 Interfaces 開發者共用的契約。**第一節的 v1 確認失效已在本次實作；第二至七節是 DDD-01 至 DDD-08 的目標 schema v2，尚未提供 v2 API、完整 v2 ports、資料遷移或 PDF renderer。** 不得把目標契約當成已存在的可呼叫功能。第八節為已接線的 v1 RAG 增量。
 
@@ -128,3 +128,10 @@ GraphRAG 的選型、住宅公式來源核對及正式 PDF 模板實作仍依 [T
 - v1 缺 ID 使用 404、revision 衝突 409、模型不可用 503；輸入結構及來源上傳錯誤 422，用例適用性或缺少上雲確認 400，沿用 v1 既有錯誤格式。
 - generate=false 完全本機；true 須明確上雲確認，且有 hits 才呼叫模型。RAG 共享欄位抽取的 Bedrock 鎖、gate、有限重試與憑證鏈；快取隔離 prompt／model／region／問題與完整 hits。
 - 資料來源綁定及 OCR 內容不等於規則核准；本次無 approved rules 自動提升、無估價運算、無基準自動切換、無 v2 API。v2 的主體／多標的及核准模型仍留給 DDD-01／04。
+
+
+## 9. Agentic RAG 增量
+
+Application 擁有 AgentModel.next_turn(context, history, tools) → AgentTurn；ToolCall、ToolResult 與四個工具的參數 schema 在 agent_contracts.py。AgentTurn.continuation 是 adapter 擁有的不透明往返信息，不由 application 解讀 AWS 欄位；SDK 型別不進入 domain。
+
+agentic_rag.py 執行工具白名單與有界迴圈，使用既有 EvidenceRetriever、ReviewRepository 與 domain.review。新增唯讀 /api/cases/{id}/agent-evidence；不改 v1 Case、保存、確認或資料庫 schema。API 與預算見 [Agentic RAG 文件](agentic-rag.md)。原本純本機檢索與單次生成 API 保持相容。

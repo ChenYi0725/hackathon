@@ -24,17 +24,21 @@ class AiRequest(RevisionRequest):
     cloud_data_approved: StrictBool = False
 
 
+class AgentRequest(AiRequest):
+    question: str = Field(min_length=1, max_length=1000)
+
+
 class RagRequest(AiRequest):
     question: str = Field(min_length=1, max_length=1000)
     generate: StrictBool = False
     rule_ids: list[str] = Field(default_factory=list, max_length=100)
 
 
-def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=None):
+def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=None, agent_model=None):
     @asynccontextmanager
     async def lifespan(app):
         app.state.settings = settings or Settings()
-        app.state.service = build_service(app.state.settings, pdf=pdf, ai=ai, retriever=retriever, answerer=answerer)
+        app.state.service = build_service(app.state.settings, pdf=pdf, ai=ai, retriever=retriever, answerer=answerer, agent_model=agent_model)
         if os.getenv('SEED_EXAMPLES', 'true').lower() == 'true':
             app.state.service.seed_examples(sample_document(app.state.settings))
         yield
@@ -150,6 +154,10 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
     def evidence(cid: str, body: RagRequest):
         return service().rag.query(cid, body.revision, body.question, generate=body.generate,
                                    cloud_data_approved=body.cloud_data_approved, rule_ids=body.rule_ids)
+
+    @app.post('/api/cases/{cid}/agent-evidence')
+    def agent_evidence(cid: str, body: AgentRequest):
+        return service().rag.agent.query(cid, body.revision, body.question, body.cloud_data_approved)
 
     @app.get('/api/rulesets/{rid}/evidence-documents')
     def evidence_documents(rid: str):

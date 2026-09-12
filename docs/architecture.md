@@ -70,3 +70,7 @@ AWS 主機的對外存取、登入、備份與多機協調尚未在本次部署�
 `application/rag.py` 編排上傳來源、唯讀檢索與引用說明；`rag_contracts.py` 定義 DTO。`LocalEvidenceRetriever` 從 repository 精確篩選案件基準 ID／版本、地區、用地與期間後，以中文雙字詞 BM25 排名。`BedrockEvidenceAnswerer` 共用既有 transport、lock 與 gate，只生成可引用本次 hits 的說明。
 
 新增 `evidence_documents` 表與索引，原始 PDF 保存在原有 documents／uploads；案件與 audit 不變。`static/rag.js` 提供來源上傳、查找與說明視窗。查詢不更改基準或確認狀態；v2 整合與 GraphRAG 仍未實作。詳見 [RAG 操作與限制](rag.md)及 [共用契約](contracts.md)。
+
+## Agentic RAG
+
+`AgenticRagService` 讓模型透過 `AgentModel` 選擇四個已註冊函式：搜尋、來源讀頁、查看規則及 domain 審查。Bedrock adapter 負責原生 toolUse／toolResult；工具由 application 執行，不讓模型直接操作 Python 或資料庫。迴圈受 revision、工具白名單、引用驗證及次數限制。詳見 [Agentic RAG](agentic-rag.md)。

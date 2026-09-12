@@ -51,7 +51,7 @@
 | DDD-04 | P0 | ports 與案件用例整合 | Application | DDD-02、DDD-03 | 待認領 | — |
 | DDD-05 | P0 | PDF 報告與原書表產製 | Infrastructure | DDD-04 | 待認領 | — |
 | DDD-06 | P0 | 多標的核對與 PDF 下載介面 | Interfaces／UI | DDD-04、DDD-05 | 待認領 | — |
-| DDD-07 | P1 | 具版本篩選及引用的依據檢索 | Infrastructure | DDD-04（v2）；本次先接 v1 | 待審查 | Codex／[PR #5](https://github.com/ChenYi0725/hackathon/pull/5) |
+| DDD-07 | P1 | 具版本篩選及引用的依據檢索 | Infrastructure | DDD-04（v2）；本次先接 v1 | 待審查 | Codex／[PR #6](https://github.com/ChenYi0725/hackathon/pull/6)（基礎 RAG：已合併 PR #5） |
 | DDD-08 | P0 | 題目完整流程與回歸驗收 | Integration | DDD-05、DDD-06 | 待認領 | — |
 | DDD-09 | P2 | GraphRAG 對照評估 | Infrastructure＋Integration | DDD-07、DDD-08 | 待認領 | — |
 
@@ -112,7 +112,7 @@
 
 ### DDD-07：來源檢索
 
-依使用者優先順序，先交付可獨立使用的 v1 RAG 切片。新增來源 PDF 上傳、期間綁定、本機中文文字檢索、引用與 Bedrock 說明。v2 多標的契約仍依賴 DDD-04，不以本次完成整體 v2 整合。行為與限制見 [RAG 文件](rag.md)。
+依使用者優先順序，先交付可獨立使用的 v1 RAG 切片。新增來源 PDF 上傳、期間綁定、本機中文文字檢索、引用與 Bedrock 說明；另依使用者要求加入四個唯讀工具的 Agentic RAG。v2 多標的契約仍依賴 DDD-04，不以本次完成整體 v2 整合。行為與限制見 [RAG 文件](rag.md)。
 
 - 在 `EvidenceRetriever` 後實作基準 ID／版本精確查找與文件檢索；以地區、用地類別、適用時間及案件指定版本篩選，避免最相似但不適用的規則。
 - 回傳文件 ID／版本、頁碼、原文與可用座標，讓說明能追溯；檢索結果不直接修改案件基準或可執行公式。
