@@ -5,6 +5,8 @@ const os = require('node:os');
 const venv = path.join(__dirname, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
 const conda = path.join(os.homedir(), 'anaconda3', 'python.exe');
 const python = process.env.TEST_PYTHON || (fs.existsSync(venv) ? venv : fs.existsSync(conda) ? conda : 'python');
+const port = process.env.TEST_PORT || '8011';
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'landwise-e2e-'));
 module.exports = defineConfig({
   testDir: './e2e',
   outputDir: 'test-results/artifacts',
@@ -12,7 +14,7 @@ module.exports = defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:8011',
+    baseURL: `http://127.0.0.1:${port}`,
     channel: process.env.PLAYWRIGHT_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined),
     viewport: { width: 1440, height: 1040 },
     trace: 'retain-on-failure',
@@ -20,9 +22,9 @@ module.exports = defineConfig({
   },
   webServer: {
     command: `"${python}" run.py`,
-    url: 'http://127.0.0.1:8011/api/health',
+    url: `http://127.0.0.1:${port}/api/health`,
     reuseExistingServer: false,
     timeout: 30000,
-    env: { ...process.env, PORT: '8011', APP_DATA_DIR: path.join(__dirname, 'test-results', `db-${Date.now()}`), BEDROCK_ENABLED: 'false' }
+    env: { ...process.env, PORT: port, APP_DATA_DIR: dataDir, BEDROCK_ENABLED: 'false' }
   }
 });

@@ -23,13 +23,18 @@ class ReviewService:
         if self.renderer is None:
             raise ExportUnavailable('書表輸出尚未設定。')
         rules = self.repository.get_rules(case.ruleset_id)
-        result = review(case, rules)
+        run = self.workflow.run(case_id, revision) if hasattr(self, 'workflow') else None
+        result = dict(run['review'], run_id=run['id'], dispositions=self.repository.dispositions(case_id)) if run else review(case, rules)
         try:
             artifact = self.renderer.render(case.model_copy(deep=True), result, rules, kind, generated_at)
         except (ImportError, OSError) as error:
             raise ExportUnavailable('書表產製失敗；請檢查輸出套件、模板與中文字型設定。') from error
         if self.repository.get_case(case_id).revision != revision:
             raise RevisionConflict('產製期間案件已更新，請重新匯出。')
+        if run:
+            self.workflow.validated_run(case_id, revision, run['id'])
+            if result['dispositions'] != self.repository.dispositions(case_id):
+                raise RevisionConflict('產製期間人工處置已更新，請重新匯出。')
         return artifact
 
     def seed_examples(self, document=None):
@@ -42,6 +47,10 @@ class ReviewService:
             self.repository.save_case(case, '建立內建範例', new=True)
 
     def payload(self, case):
+        if hasattr(self, 'workflow'):
+            run = self.workflow.run(case.id, case.revision)
+            return {'case': case.model_dump(), 'review': run['review'], 'run': {k: v for k, v in run.items() if k not in ('case', 'rules', 'evidence', 'review')},
+                    'dispositions': self.repository.dispositions(case.id)}
         return {'case': case.model_dump(), 'review': review(case, self.repository.get_rules(case.ruleset_id))}
 
     def get_case(self, case_id):
@@ -57,8 +66,17 @@ class ReviewService:
         ids = [f.id for f in case.factors]
         if len(ids) != len(set(ids)):
             raise ValueError('因素 ID 不可重複。')
+        comparison_ids = [c.id for c in case.additional_comparisons]
+        if 'primary' in comparison_ids or len(comparison_ids) != len(set(comparison_ids)):
+            raise ValueError('比較標的 ID 不可重複或使用保留名稱 primary。')
+        for comparison in case.additional_comparisons:
+            ids = [f.id for f in comparison.factors]
+            if len(ids) != len(set(ids)):
+                raise ValueError('比較標的內的因素 ID 不可重複。')
         if case.document_id:
             self.repository.get_document(case.document_id)
+        for docid in case.document_ids:
+            self.repository.get_document(docid)
 
     def save_case(self, case: Case, *, new=False):
         self.validate_case(case)
@@ -66,7 +84,8 @@ class ReviewService:
         if previous is not None and previous.revision != case.revision:
             raise RevisionConflict('案件已更新，請重新載入。')
         candidate = invalidate_confirmations(previous, case)
-        saved = self.repository.save_case(candidate, '建立或匯入案件' if new else '儲存欄位與重新審查', new=new)
+        action = '建立或匯入案件' if new else '儲存欄位與重新審查' + ('；原因：' + case.change_reason.strip() if case.change_reason.strip() else '；未提供額外修改原因')
+        saved = self.repository.save_case(candidate, action, new=new)
         return self.payload(saved)
 
     def create_sample(self, kind, document=None):
@@ -92,19 +111,30 @@ class ReviewService:
         previous = case.model_copy(deep=True)
         if revision != case.revision:
             raise RevisionConflict('案件已更新，請重新載入。')
-        result = review(case, self.repository.get_rules(case.ruleset_id))
+        target = case
+        if ':' in check_id:
+            comparison_id, check_id = check_id.split(':', 1)
+            comparison = next((c for c in case.additional_comparisons if c.id == comparison_id), None)
+            if comparison is None:
+                raise ValueError('未知比較標的。')
+            target = comparison
+            view = case.model_copy(update=dict(comparable_name=comparison.name, comparable_section=comparison.section,
+                factors=comparison.factors, totals=comparison.totals, totals_confirmed=comparison.totals_confirmed))
+        else:
+            view = case
+        result = review(view, self.repository.get_rules(case.ruleset_id))
         item = next((row for row in result['checks'] if row['id'] == check_id), None)
         if not item or item['status'] != 'error' or item['expected'] is None:
             raise ValueError('此項目前沒有可直接採用的修正建議。')
         if item.get('factor_id'):
-            factor = next(f for f in case.factors if f.id == item['factor_id'])
+            factor = next(f for f in target.factors if f.id == item['factor_id'])
             factor.entered_rate = item['expected']
             if factor.subject_grade is not None:
                 factor.subject_grade = item['subject_grade']
             if factor.comparable_grade is not None:
                 factor.comparable_grade = item['comparable_grade']
         elif item.get('total_field'):
-            setattr(case.totals, item['total_field'], item['expected'])
+            setattr(target.totals, item['total_field'], item['expected'])
         else:
             raise ValueError('請手動處理此項。')
         return self.payload(self.repository.save_case(invalidate_confirmations(previous, case), '採用建議：' + item['title']))
@@ -125,4 +155,22 @@ class ReviewService:
                     message='Bedrock 草稿尚未套用。引用與欄位值已做原文存在性檢查，兩側對應仍須人工確認。')
 
     def create_ruleset(self, ruleset):
-        return self.repository.add_rules(validate_ruleset(ruleset))
+        draft = dict(validate_ruleset(ruleset), approval_state='draft')
+        for key in ('approved_at', 'approval_reason', 'approved_from'):
+            draft.pop(key, None)
+        return self.repository.add_rules(draft)
+
+    def publish_ruleset(self, ruleset_id, reason, source_confirmed, matrix_confirmed, valid_from, valid_to):
+        from app.domain.applicability import valuation_day
+        from datetime import datetime, timezone
+        if source_confirmed is not True or matrix_confirmed is not True or not reason.strip():
+            raise ValueError('請核對原文及矩陣並填寫核准原因。')
+        if valuation_day(valid_from) > valuation_day(valid_to):
+            raise ValueError('基準適用期間前後顛倒。')
+        original = self.repository.get_rules(ruleset_id)
+        if original.get('approval_state') == 'published':
+            raise ValueError('此版本已發布；請另建草稿版本。')
+        published = dict(original, approval_state='published', valid_from=valid_from, valid_to=valid_to,
+                         approved_at=datetime.now(timezone.utc).isoformat(), approval_reason=reason,
+                         approved_from=ruleset_id)
+        return self.repository.add_rules(validate_ruleset(published))

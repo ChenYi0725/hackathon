@@ -4,9 +4,10 @@ const path = require('node:path');
 test('dashboard, evidence, fix, edit, persist and export', async ({ page }) => {
   const errors=[];
   page.on('pageerror', e => errors.push(e.message));
+  const initialCases=await (await page.request.get('/api/cases')).json();
   await page.goto('/');
   await expect(page.getByRole('heading', { name: '案件工作台', exact: true })).toBeVisible();
-  await expect(page.locator('.case-table tbody tr')).toHaveCount(2);
+  await expect(page.locator('.case-table tbody tr')).toHaveCount(initialCases.length);
   await page.screenshot({ path: 'test-results/dashboard.png', fullPage: true });
   const [sampleResponse] = await Promise.all([
     page.waitForResponse(r => r.url().endsWith('/api/samples/errors') && r.request().method() === 'POST'),
@@ -32,7 +33,8 @@ test('dashboard, evidence, fix, edit, persist and export', async ({ page }) => {
   await page.getByRole('button',{name:'儲存並重新審查'}).click();
   await page.getByRole('button',{name:'審查結果',exact:true}).click();
   const school=page.locator('.check').filter({has:page.getByRole('heading',{name:'接近學校之程度',exact:true})});
-  await expect(school.locator('.pill')).toHaveText('通過');
+  // Legacy reference rules have no human-published applicability period.
+  await expect(school.locator('.pill')).toHaveText('待確認');
   await school.getByRole('button',{name:'原文 p.3'}).click();
   await page.getByRole('button',{name:'文字版',exact:true}).click();
   const document = await (await page.request.get('/api/documents/' + sampleCase.document_id)).json();
@@ -53,7 +55,7 @@ test('dashboard, evidence, fix, edit, persist and export', async ({ page }) => {
   await page.getByRole('button',{name:'關閉',exact:true}).click();
   await page.getByRole('button',{name:'返回案件工作台',exact:true}).click();
   await page.getByRole('textbox',{name:'搜尋案件'}).fill('錯誤示範');
-  await expect(page.locator('.case-table tbody tr')).toHaveCount(2);
+  await expect(page.locator('.case-table tbody tr')).toHaveCount(initialCases.filter(c=>c.title.includes('錯誤示範')).length+1);
   expect(errors).toEqual([]);
 });
 

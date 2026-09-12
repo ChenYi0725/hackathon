@@ -115,3 +115,38 @@ def test_revision_change_during_render_is_rejected(templates, tmp_path):
         service.renderer = ConcurrentRenderer()
         response = client.get(f'/api/cases/{case.id}/export/table4-xlsx?revision={case.revision}')
         assert response.status_code == 409
+
+
+def test_native_templates_include_all_comparisons(templates):
+    from app.domain.models import Comparison
+    case=sample_case(False)
+    case.additional_comparisons=[Comparison(id='second',name='合成第二筆',section='S2',factors=case.factors,totals=case.totals),
+                                 Comparison(id='third',name='合成第三筆',section='S3',factors=case.factors,totals=case.totals)]
+    renderer=TemplateFormRenderer(templates)
+    for number in ('3','4','5'):
+        artifact=render(renderer,'table'+number+'-xlsx',case)
+        book=load_workbook(io.BytesIO(artifact.data))
+        if number=='3':
+            assert len(book.worksheets)==5
+            assert book['表3-比較標的2']['G3'].value=='S2'
+            assert book['表3-比較標的3']['G3'].value=='S3'
+        elif number=='4':
+            assert book.active['K4'].value=='合成第二筆'
+            assert book.active['O4'].value=='合成第三筆'
+            assert book.active['K31'].value==case.totals.trial_price
+        else:
+            assert book.active['H3'].value=='S2'
+            assert book.active['K3'].value=='S3'
+
+
+def test_evidence_change_during_native_export_is_rejected(templates,tmp_path):
+    app=create_app(Settings(data_dir=tmp_path/'data',form_template_dir=templates,ai_enabled=False))
+    with TestClient(app) as client:
+        service=app.state.service;case=service.repository.list_cases()[0][0];original=service.renderer
+        class Racing:
+            def render(self,snapshot,*args):
+                artifact=original.render(snapshot,*args)
+                service.workflow.lookup(snapshot.id,snapshot.revision,'width',dict(mode='mock',scenario='timeout'))
+                return artifact
+        service.renderer=Racing()
+        assert client.get(f'/api/cases/{case.id}/export/table4-xlsx?revision={case.revision}').status_code==409

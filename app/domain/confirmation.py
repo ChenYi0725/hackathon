@@ -5,6 +5,7 @@ from app.domain.models import Case
 CONFIRMATION_CONTEXT = (
     'ruleset_id', 'document_id', 'locality', 'land_use', 'valuation_date',
     'subject_name', 'comparable_name', 'subject_section', 'comparable_section',
+    'document_ids', 'field_sources',
 )
 
 
@@ -28,4 +29,18 @@ def invalidate_confirmations(previous: Case | None, proposed: Case) -> Case:
             factor.confirmed = False
     if context_changed or factors_changed or previous.totals != saved.totals:
         saved.totals_confirmed = False
+    old_comparisons = {c.id: c for c in previous.additional_comparisons} if previous else {}
+    for comparison in saved.additional_comparisons:
+        old = old_comparisons.get(comparison.id)
+        changed_context = context_changed or old is None or (old.name, old.section) != (comparison.name, comparison.section)
+        old_rows = {f.id: f for f in old.factors} if old else {}
+        changed_rows = old_rows.keys() != {f.id for f in comparison.factors}
+        for factor in comparison.factors:
+            before = old_rows.get(factor.id)
+            changed = before is None or before.model_dump(exclude={'confirmed'}) != factor.model_dump(exclude={'confirmed'})
+            changed_rows |= changed
+            if changed_context or changed:
+                factor.confirmed = False
+        if changed_context or changed_rows or old.totals != comparison.totals:
+            comparison.totals_confirmed = False
     return saved

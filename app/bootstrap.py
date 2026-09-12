@@ -10,6 +10,10 @@ from app.infrastructure.paddle_pdf import PaddlePdfReader
 from app.infrastructure.persistence import SQLiteReviewRepository
 from app.infrastructure.text_pdf import read_pdf
 from app.infrastructure.form_exports import TemplateFormRenderer
+from app.application.workflow import WorkflowService
+from app.infrastructure.documents import CaseDocumentReader
+from app.infrastructure.reports import SnapshotRenderer
+from app.infrastructure.external import OfficialEvidenceAdapter
 
 
 def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None, agent_model=None):
@@ -20,8 +24,10 @@ def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None, ag
     retrieval = retriever or LocalEvidenceRetriever(repository)
     agent = AgenticRagService(repository, retrieval, agent_model or BedrockAgentModel(transport))
     rag = RagService(repository, pdf_reader, retrieval, answerer or BedrockEvidenceAnswerer(transport), agent=agent)
-    return ReviewService(repository, pdf_reader, ai or transport, rag=rag,
-                         renderer=TemplateFormRenderer(settings.form_template_dir))
+    service = ReviewService(repository, pdf_reader, ai or transport, rag=rag, renderer=TemplateFormRenderer(settings.form_template_dir))
+    service.workflow = WorkflowService(service, CaseDocumentReader(pdf_reader), SnapshotRenderer(), OfficialEvidenceAdapter())
+    agent.workflow = service.workflow
+    return service
 
 
 def sample_document(settings):

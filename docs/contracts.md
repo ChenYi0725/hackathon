@@ -2,6 +2,14 @@
 
 本文件是 Domain、Application、Infrastructure 與 Interfaces 開發者共用的契約。**第一節的 v1 確認失效已在本次實作；第二至七節是 DDD-01 至 DDD-08 的目標 schema v2，尚未提供 v2 API、完整 v2 ports、資料遷移或 PDF renderer。** 不得把目標契約當成已存在的可呼叫功能。第八節為已接線的 v1 RAG 增量。
 
+## 0. 已實作的核心流程相容增量
+
+目前另有 [核心流程契約與驗收](core-workflow.md)：`Case.document_ids`、逐欄 `field_sources`、`change_reason`、最多兩筆 `additional_comparisons`（加上既有第一筆，共三筆）。各比較標的有穩定 ID、自己的 factors／totals／確認狀態；並未將原欄位拆除或宣稱完成以下所有 v2 契約。
+
+`Evidence` 增加可選 document_id、sha256、sheet、cell、formula。文件來源採用透過用例驗證案件關聯與實際儲存格。`review_runs` 保存不可覆寫的案件、規則、證據與結果；`dispositions` 將人工處置與技術判定分開，操作 ID 防止重試重複。
+
+`CaseDocumentReader`、`SnapshotRenderer`、`ExternalEvidence` ports 已在 `application/ports.py` 定義，於 bootstrap 注入。新增 `/review`、`/documents`、`/apply-cell`、`/decisions`、`/external`、`/artifacts/{kind}`；既有 API 保持可讀。`artifacts` 必須帶 revision 及 run_id，前後核對版本。原 HTML forms 對多標的回覆 400，明確引導完整 Excel／ZIP，不取第一筆冒充整案。
+
 ## 1. 現行 v1：確認只適用於已保存內容
 
 確認失效規則由 `app/domain/confirmation.py` 定義，application 在一般保存、JSON 建立／匯入及採用建議時執行。HTTP payload 保持原格式，不新增必填欄位。

@@ -63,6 +63,7 @@ def pdf_font():
     from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.pdfbase.ttfonts import TTFError
     candidates = [os.getenv('PDF_FONT_PATH'),
+                  '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
                   str(Path(os.getenv('WINDIR', 'C:/Windows')) / 'Fonts/msjh.ttc'),
                   '/usr/share/fonts/truetype/arphic/uming.ttc']
     for candidate in candidates:
@@ -186,6 +187,34 @@ class TemplateFormRenderer:
             sheet.page_setup.fitToWidth = 1
             sheet.page_setup.fitToHeight = 1
             sheet.sheet_properties.pageSetUpPr.fitToPage = True
+        # Extend the existing confirmed column mappings; never omit extra comparisons.
+        for index, comparison in enumerate(case.additional_comparisons, 2):
+            extra = {f.id: f for f in comparison.factors}
+            get = lambda fid, side: getattr(extra[fid], side) if fid in extra else None
+            if number == '3':
+                sheet = wb.copy_worksheet(other)
+                sheet.title = f'表3-比較標的{index}'
+                put(sheet, 'G3', comparison.section)
+                put(sheet, 'L3', f'{case.locality} {comparison.name}；範圍待核對')
+                for address, fid in SURVEY.items():put(sheet, address, get(fid, 'comparable'))
+            elif number == '4':
+                col, rate, weight = ('K','N','M') if index == 2 else ('O','R','Q')
+                for address,value in {rate+'2':comparison.name,col+'4':comparison.name,col+'8':comparison.section,
+                    col+'5':comparison.totals.normal_price,rate+'6':comparison.totals.time_rate,
+                    col+'7':comparison.totals.adjusted_price,rate+'8':comparison.totals.regional_carried,
+                    col+'29':comparison.totals.individual,col+'30':comparison.totals.absolute,
+                    col+'31':comparison.totals.trial_price,weight+'31':comparison.totals.weight}.items():put(ws,address,value)
+                for row,fid in INDIVIDUAL.items():
+                    put(ws,f'{col}{row}',get(fid,'comparable'))
+                    put(ws,f'{rate}{row}',get(fid,'entered_rate'))
+            else:
+                col,rate = ('H','J') if index == 2 else ('K','M')
+                put(ws,rate+'2',comparison.name);put(ws,col+'3',comparison.section);put(ws,col+'43',comparison.name)
+                for row,fid in REGIONAL.items():
+                    put(ws,f'{col}{row}',get(fid,'comparable_grade') if residential else '基準不適用')
+                    put(ws,f'{rate}{row}',get(fid,'entered_rate') if residential else '基準不適用')
+                for row in (11,18,24,26,33,37,39,41):put(ws,f'{col}{row}','小計待確認')
+                put(ws,col+'42',comparison.totals.regional_detail if residential else '基準不適用')
         detail = wb.create_sheet('填值與審核明細')
         detail.append(['模板', paths[0].name, 'SHA256', hashlib.sha256(source).hexdigest()])
         for row in self.detail_rows(case, result, rules, generated_at):
@@ -201,12 +230,21 @@ class TemplateFormRenderer:
         yield ['基準', rules['id'], '基準版本', rules['version']]
         yield ['產出時間', generated_at, '狀態', '原填值草稿；詳見審核結果']
         yield ['案件備註', case.notes]
-        yield ['限制', '目前一筆比較標的；其他標的未提供。表3設施名稱等缺值待補。']
+        yield ['限制', f'本案 {1+len(case.additional_comparisons)} 筆比較標的；表3設施名稱等缺值待補。']
+        if result.get('run_id'):yield ['檢核快照', result['run_id']]
         yield ['因素', '比準地原填', '比較標的原填', '原填修正率', '確認', '來源頁', '引用／備註']
         names = {r['id']: r['name'] for r in rules['rules']}
         for f in case.factors:
             yield [names.get(f.id, f.id), f.subject, f.comparable, f.entered_rate,
                    '已確認' if f.confirmed else '待確認', f.evidence.page, f.evidence.quote + ' ' + f.note]
+        for comparison in case.additional_comparisons:
+            yield ['比較標的',comparison.id,comparison.name,comparison.section]
+            for f in comparison.factors:
+                yield [names.get(f.id,f.id),f.subject,f.comparable,f.entered_rate,
+                       '已確認' if f.confirmed else '待確認',f.evidence.page,f.evidence.quote+' '+f.note]
+        for decision in result.get('dispositions', []):
+            yield ['人工處置',decision['check_id'],decision['decision'],decision['reason'],decision['at'],
+                   '目前結果' if decision['run_id']==result.get('run_id') else '歷史處置',decision['technical_status']]
         yield ['檢核項目', '狀態', '原填值', '預期值', '說明', '原文頁', '基準頁']
         for r in result['checks']:
             yield [r['title'], STATUS[r['status']], r.get('actual'), r.get('expected'),
@@ -244,17 +282,29 @@ class TemplateFormRenderer:
                                 topMargin=28, bottomMargin=28, title=case.title)
         rows = [[p(v) for v in ['檢核項目', '狀態', '原填值', '預期值', '依據與說明']]]
         for r in result['checks']:
+            evidence = r.get('evidence', {})
+            locator = (f"文件 {evidence['document_id']} / {evidence.get('sheet') or ''} {evidence.get('cell') or ''} / p.{evidence.get('page')}"
+                       if evidence.get('document_id') else '人工輸入／程式重算，見案件快照')
             rows.append([p(v) for v in [r['title'], STATUS[r['status']], r.get('actual'), r.get('expected'),
-                f'{r["message"]}\n原文 p.{text(r.get("page"))}／基準 p.{text(r.get("rule_page"))}']])
+                f'{r["message"]}\n{locator}\n基準 p.{text(r.get("rule_page"))} / {r.get("formula_id", "程式規則")}']])
         table = LongTable(rows, colWidths=[132, 58, 65, 65, 465], repeatRows=1, splitInRow=1)
         table.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), .3, '#9DAFA8'),
                                   ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                                   ('BACKGROUND', (0, 0), (-1, 0), '#EAF3EF')]))
-        doc.build([p('地衡｜逐項審查結果'), p(case.title),
+        story = [p('地衡｜逐項審查結果'), p(case.title),
             p(f'案件 {case.id}｜版本 {case.revision}｜基準 {rules["id"]}/{rules["version"]}'),
             p(f'比準地 {case.subject_name}／比較標的 {case.comparable_name}｜基準日 {case.valuation_date}'),
             p('輔助審查草稿；' + ('全部檢核通過' if result['complete'] else '尚有疑點或待確認項目')),
-            p(case.notes), p(generated_at), Spacer(1, 12), table])
+            p(case.notes), p(generated_at)]
+        if result.get('run_id'):story.append(p('檢核快照：'+result['run_id']))
+        for comparison in case.additional_comparisons:story.append(p(f'比較標的 {comparison.id} / {comparison.name} / {comparison.section}'))
+        story.extend([Spacer(1,12),table,Spacer(1,12),p('人工處置（不改變程式技術判定）')])
+        for decision in result.get('dispositions', []):
+            story.append(p(f"{decision['check_id']} / {decision['decision']} / {decision['reason']} / {decision['at']} / "+
+                           ('目前結果' if decision['run_id']==result.get('run_id') else '歷史處置')))
+        def footer(canvas, doc):
+            canvas.saveState();canvas.setFont(font,8);canvas.drawRightString(805,14,f'案件版本 {case.revision} / 第 {doc.page} 頁');canvas.restoreState()
+        doc.build(story,onFirstPage=footer,onLaterPages=footer)
         return stream.getvalue()
 
     @staticmethod

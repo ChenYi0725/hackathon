@@ -150,3 +150,27 @@ def test_agent_http_is_explicit_and_read_only(tmp_path,monkeypatch):
         result=client.post(url,json=dict(body,cloud_data_approved=True))
         assert result.status_code==200 and result.json()['review']['complete'] is False
         assert client.get('/api/cases/'+case['id']).json()['case']==case
+
+
+def test_large_review_tool_is_bounded_but_final_result_keeps_all_checks(setup):
+    repo,case=setup
+    from copy import deepcopy
+    rules=repo.get_rules(case.ruleset_id)
+    template=rules['rules'][0]
+    rules['rules']=[dict(deepcopy(template),id='synthetic_'+str(i),name='合成因素 '+str(i)) for i in range(47)]
+    rules=repo.add_rules(rules)
+    case=repo.save_case(case.model_copy(update={'ruleset_id':rules['id']}),'synthetic rules')
+    class Model:
+        def next_turn(self,context,history,tools):
+            if not history:return AgentTurn(calls=(call('1','review_case'),))
+            response=history[-1]['results'][0]
+            assert response['status']=='success'
+            data=response['data']
+            assert data['checks_truncated'] and data['total_checks']>47
+            assert len(data['checks'])==30
+            assert len(json.dumps(data,ensure_ascii=False))<24000
+            assert data['complete'] is False
+            return finish()
+    result=AgenticRagService(repo,LocalEvidenceRetriever(repo),Model()).query(case.id,case.revision,'檢核所有因素',True)
+    assert len(result['review']['checks'])>47
+    assert result['review']['counts']['missing']>=47

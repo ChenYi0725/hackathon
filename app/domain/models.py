@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import uuid4
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -10,6 +11,11 @@ class Evidence(StrictModel):
     page: int = Field(ge=1, le=200, default=3)
     quote: str = Field(default='', max_length=3000)
     method: str = 'manual'
+    document_id: str | None = None
+    sheet: str | None = None
+    cell: str | None = None
+    sha256: str | None = None
+    formula: str | None = None
 
 
 class Factor(StrictModel):
@@ -37,6 +43,15 @@ class Totals(StrictModel):
     weight: float | None = Field(default=None, ge=0, le=100)
 
 
+class Comparison(StrictModel):
+    id: str = Field(default_factory=lambda: uuid4().hex, pattern=r'^[a-zA-Z0-9_-]{1,80}$')
+    name: str = Field(default='', max_length=200)
+    section: str = Field(default='', max_length=200)
+    factors: list[Factor] = Field(default_factory=list, max_length=100)
+    totals: Totals = Field(default_factory=Totals)
+    totals_confirmed: bool = False
+
+
 class Case(StrictModel):
     id: str = ''
     revision: int = 0
@@ -51,10 +66,14 @@ class Case(StrictModel):
     land_use: str = '商業用地'
     ruleset_id: str = 'jinshan-commercial-v1'
     document_id: str | None = None
+    document_ids: list[str] = Field(default_factory=list, max_length=100)
+    field_sources: dict[str, Evidence] = Field(default_factory=dict)
+    additional_comparisons: list[Comparison] = Field(default_factory=list, max_length=2)
     demo: bool = False
     source_kind: str = 'manual'
     factors: list[Factor] = Field(default_factory=list,max_length=100)
     totals: Totals = Field(default_factory=Totals)
     totals_confirmed: bool = False
     notes: str = Field(default='',max_length=12000)
+    change_reason: str = Field(default='', max_length=3000)
     extraction_warnings: list[str] = Field(default_factory=list,max_length=100)

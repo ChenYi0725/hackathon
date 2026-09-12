@@ -5,7 +5,7 @@ from app.application.ports import ExtractionUnavailable, RevisionConflict, Revie
 from app.application.agent_contracts import TOOL_INPUTS, ToolResult, tool_catalog
 from app.application.rag_contracts import EvidenceQuery
 from app.domain.applicability import require_ruleset_scope, valuation_day
-from app.domain.engine import review
+from app.domain.workflow import calculate, digest
 
 MAX_TURNS = 5
 MAX_TOOLS = 8
@@ -23,17 +23,34 @@ class AgenticRagService:
         require_ruleset_scope(case, rules)
         scope = EvidenceQuery(question=question.strip(), ruleset_id=rules['id'], ruleset_version=rules['version'],
                               locality=case.locality, land_use=case.land_use, valuation_date=valuation_day(case.valuation_date))
+        external = self.repository.external_for(case_id, revision)
         def check_revision():
             if self.repository.get_case(case_id).revision != revision:
                 raise RevisionConflict('Agent 查詢期間案件已更新，請重新查詢。')
+            if digest(self.repository.external_for(case_id, revision)) != digest(external):
+                raise RevisionConflict('Agent 查詢期間外部佐證已更新，請重新查詢。')
         check_revision()
         hits, trace, history, seen_calls = {}, [], [], set()
         calculation = None
+        observations = []
         context = dict(question=scope.question, case_revision=revision, ruleset_id=rules['id'], ruleset_version=rules['version'],
-                       factors=[dict(id=r['id'], name=r['name']) for r in rules['rules']])
+                       factors=[dict(id=r['id'], name=r['name'], external_required=r.get('external_required', r['unit']=='m'),
+                                     observations=next((f.model_dump(exclude={'evidence', 'note'}) for f in case.factors if f.id==r['id']), None)) for r in rules['rules']],
+                       rule_approval=rules.get('approval_state', 'unconfirmed'))
 
         def execute(name, args):
             nonlocal calculation
+            if name == 'plan_checks' and hasattr(self, 'workflow'):
+                return self.workflow.plan(case_id)
+            if name == 'lookup_facility' and hasattr(self, 'workflow'):
+                if args.rule_id not in {r['id'] for r in rules['rules']}:
+                    raise ValueError('未知因素。')
+                result = self.workflow.external.query(dict(mode='live', dataset='parks', name=args.name))
+                result = dict(result, candidates=result.get('candidates', [])[:20],
+                              factor_id=args.rule_id, query=dict(dataset='parks', name=args.name), persisted=False)
+                result['id'] = digest(result)
+                observations.append(result)
+                return result
             if name == 'search_evidence':
                 found = self.retriever.retrieve(scope.model_copy(update={'question': args.question}))
                 hits.update((h.id, h) for h in found)
@@ -64,14 +81,21 @@ class AgenticRagService:
                 return dict(ruleset_id=rules['id'], ruleset_version=rules['version'], rule=rule,
                             warning='程式中的規則設定，不代表原文或人工核准。')
             if name == 'review_case':
-                calculation = review(case, rules)
+                calculation = calculate(case, rules, external + observations)
+                # Full provenance is returned to the UI, not repeated in every model turn.
+                # Prioritize unresolved items and explicitly mark bounded tool output.
+                ordered = sorted(calculation['checks'], key=lambda r:r['status'] == 'pass')
+                compact = [{key:row.get(key) for key in ('id','title','status','actual','expected','formula_id','comparison_id')}
+                           for row in ordered[:30]]
                 return dict(case_revision=revision, counts=calculation['counts'], computed=calculation['computed'],
-                            complete=calculation['complete'], checks=calculation['checks'], source='deterministic-engine')
+                            complete=calculation['complete'], checks=compact, checks_truncated=len(ordered)>30,
+                            total_checks=len(ordered),
+                            comparisons=calculation.get('comparisons', []), aggregate=calculation.get('aggregate'), source='deterministic-engine')
             raise ValueError('未開放的工具。')
 
         for _ in range(MAX_TURNS):
             check_revision()
-            turn = self.model.next_turn(context, history, tool_catalog())
+            turn = self.model.next_turn(context, history, tool_catalog(include_workflow=hasattr(self, 'workflow')))
             check_revision()
             if turn.calls and turn.answer is not None:
                 raise ExtractionUnavailable('模型同時回傳工具與答案，請重試。')
@@ -80,9 +104,12 @@ class AgenticRagService:
                 if draft is None or any(not set(s.citation_ids).issubset(hits) for s in draft.statements):
                     raise ExtractionUnavailable('Agent 未提供有效來源引用，請使用本機查找。')
                 statements = [] if draft.insufficient_evidence else [s.model_dump() for s in draft.statements]
+                if calculation is not None:
+                    calculation = calculate(case, rules, external + observations)
                 return dict(case_revision=revision, ruleset_id=rules['id'], ruleset_version=rules['version'],
                             status='draft' if statements else 'insufficient_evidence', statements=statements,
                             hits=[h.model_dump(mode='json') for h in hits.values()], tool_trace=trace, review=calculation,
+                            external_observations=observations,
                             message='Agent 說明為待核對草稿；下方審查結果由確定性引擎產生。')
             if len(trace)+len(turn.calls)>MAX_TOOLS:
                 raise ExtractionUnavailable('Agent 已達工具次數上限，請縮小問題範圍。')

@@ -8,7 +8,7 @@ import tempfile
 import time
 from app.bootstrap import build_service
 from app.domain.models import Case, Factor
-from app.domain.engine import review
+from app.domain.workflow import calculate
 from app.domain.rule_validation import validate_ruleset
 from app.infrastructure.settings import Settings, ROOT
 from app.infrastructure.bedrock_agent import PROMPT_VERSION
@@ -23,12 +23,14 @@ def specifications():
 
 def prepare(service, spec):
     rules=service.repository.get_rules('jinshan-commercial-v1')
-    rules.update(name='純合成驗收基準',source='Synthetic fixtures only; not valuation guidance',version='eval-v1')
+    rules.update(name='純合成驗收基準',source='Synthetic fixtures only; not valuation guidance',version='eval-v1',
+                 approval_state='published',valid_from='2025-01-01',valid_to='2025-12-31')
     rules['rules']=[dict(id='width',name='寬度',group='合成測試',unit='m',scope='individual',source_page=1,
         bands=[dict(label='窄',low=0,high=10),dict(label='寬',low=10,high=None)],matrix=[[0,-2],[2,0]])]
     rules=service.repository.add_rules(validate_ruleset(rules))
     case=Case(title='合成驗收 '+spec['id'],valuation_date='2025-09-01',ruleset_id=rules['id'],
               subject_name='合成比準地',comparable_name='合成比較標的',
+              subject_section='SYNTH-S1',comparable_section='SYNTH-S2',
               factors=[Factor(id='width',subject=None if spec.get('missing') else '12',comparable='8',entered_rate=2,confirmed=True)])
     case=service.repository.save_case(case,'建立合成驗收資料',new=True)
     sources={}
@@ -67,7 +69,7 @@ def assess(spec,result,case,rules,sources,tool_results):
     if spec.get('min_documents'):criteria['retrieved_documents']=len({h['source']['document_id'] for h in hits})>=spec['min_documents']
     if spec.get('review'):
         actual=result.get('review')
-        criteria['review_matches_engine']=actual==review(case,rules)
+        criteria['review_matches_engine']=actual==calculate(case,rules,[])
         criteria['golden_numeric_result']=bool(actual and actual['computed']['individual']==spec['expected_individual'])
         width=next((c for c in actual['checks'] if c['id']=='width'),{}) if actual else {}
         criteria['golden_factor_status']=width.get('status')==spec['expected_width_status']
@@ -103,13 +105,13 @@ def run(settings, selected=None, live=False):
                 return response
         native.transport.client=Metered()
     report=dict(mode='real-bedrock' if live else 'fixture-validation',model=settings.model_id,region=settings.region,
-                prompt_version=PROMPT_VERSION,suite_sha256=hashlib.sha256((FIXTURES/'cases.json').read_bytes()).hexdigest(),
+                fixture_version='core-1',tool_profile='workflow-six-tools',prompt_version=PROMPT_VERSION,suite_sha256=hashlib.sha256((FIXTURES/'cases.json').read_bytes()).hexdigest(),
                 started_at=datetime.now(timezone.utc).isoformat(),data='synthetic PDFs and synthetic single-factor rules only',results=[])
     for spec in specifications():
         if selected and spec['id'] not in selected:continue
         start=time.monotonic();offset=len(calls)
         case,rules,sources=prepare(service,spec)
-        expected=review(case,rules)
+        expected=calculate(case,rules,[])
         if spec.get('review'):
             assert expected['computed']['individual']==spec['expected_individual']
             assert next(c for c in expected['checks'] if c['id']=='width')['status']==spec['expected_width_status']
