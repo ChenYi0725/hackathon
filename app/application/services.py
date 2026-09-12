@@ -1,5 +1,6 @@
 """Valuation use cases. No imports of FastAPI, AWS, Paddle or SQLite."""
 from app.application.drafts import parse_case
+from app.application.rag import RagService
 from app.application.ports import FieldExtractor, PdfReader, ReviewRepository, RevisionConflict
 from app.domain.engine import review
 from app.domain.confirmation import invalidate_confirmations
@@ -9,8 +10,9 @@ from app.domain.sample import sample_case
 
 
 class ReviewService:
-    def __init__(self, repository: ReviewRepository, pdf: PdfReader, ai: FieldExtractor):
+    def __init__(self, repository: ReviewRepository, pdf: PdfReader, ai: FieldExtractor, rag: RagService | None = None):
         self.repository, self.pdf, self.ai = repository, pdf, ai
+        self.rag = rag
 
     def seed_examples(self, document=None):
         if self.repository.list_cases():

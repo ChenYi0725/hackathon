@@ -1,6 +1,6 @@
-# 共用契約 1.0：確認失效與目標資料模型（DDD-00）
+# 共用契約 1.1：確認失效與目標資料模型（DDD-00）
 
-本文件是 Domain、Application、Infrastructure 與 Interfaces 開發者共用的契約。**第一節的 v1 確認失效已在本次實作；第二節以後是 DDD-01 至 DDD-08 的目標 schema v2，尚未提供 v2 API、新 ports、資料遷移或 PDF renderer。** 不得把本文件當成已存在的可呼叫功能。
+本文件是 Domain、Application、Infrastructure 與 Interfaces 開發者共用的契約。**第一節的 v1 確認失效已在本次實作；第二至七節是 DDD-01 至 DDD-08 的目標 schema v2，尚未提供 v2 API、完整 v2 ports、資料遷移或 PDF renderer。** 不得把目標契約當成已存在的可呼叫功能。第八節為已接線的 v1 RAG 增量。
 
 ## 1. 現行 v1：確認只適用於已保存內容
 
@@ -113,3 +113,18 @@ PDF 模板 ID 初版固定為 `review-report` 與 `appraisal-forms`，每份有 
 | DDD-07／08 | 檢索不跨基準版本、錯側引用拒收、合成測資完整流程；GraphRAG 不改變上述契約 |
 
 GraphRAG 的選型、住宅公式來源核對及正式 PDF 模板實作仍依 [TODO](TODO.md) 分工，不在 DDD-00 實作。契約變更需更新本文版本與相依任務，不另開互不相容的 DTO。
+
+
+## 8. v1 RAG 增量（DDD-07 提前切片）
+
+`app/application/rag_contracts.py` 定義已實作的 EvidenceQuery、SourceSpan、EvidenceHit、AnswerDraft。沿用第四節 EvidenceRetriever 的 retrieve(query)，補入 EvidenceAnswerer.answer(question, hits) 作為生成說明的獨立 port，不混入抄錄欄位的 FieldExtractor。
+
+- Query 的 ruleset_id／version、locality、land_use、valuation_date 由已保存案件及基準取得；HTTP 不接受另指定適用版本。rule_ids 可限制來源頁，未知 ID 拒絕。估價日接受 ISO 或既有民國 YYYMMDD；其他格式不猜測。
+- SourceSpan 的 page／start／end 是 PDF OCR 文字的頁碼與 Python 字元區間，quote 為原切片；bbox 與尺寸只有能明確對應整頁片段時提供，其他情況為 null。v2 可包入 tagged PDF locator，保留字元區間作為額外定位。
+- EvidenceHit 保存文件 ID、原 bytes SHA-256、基準 ID／version、地區、用地、人工指定的含首尾適用期間及排名分數。分數不是信心值。
+- ReviewRepository 增加 save_evidence_document、list_evidence_documents、evidence_sources。來源 PDF 與綁定在同一 SQLite transaction 保存；只加 evidence_documents 表與索引，不遷移現有案件／audit。
+- AnswerDraft 為 statements 陣列，每段有 text 與 citation_ids；ID 必須全部存在於本次 hits。無依據或模型回報不足時不展示回答。引用存在性檢查不保證語意支持。
+- 本次 /api/cases/{id}/evidence 為唯讀 POST，帶 revision／question／generate／cloud_data_approved／rule_ids；回傳 case_revision、基準版本、hits、statements、status、message。狀態為 sources、no_evidence、insufficient_evidence、draft。
+- v1 缺 ID 使用 404、revision 衝突 409、模型不可用 503；輸入結構及來源上傳錯誤 422，用例適用性或缺少上雲確認 400，沿用 v1 既有錯誤格式。
+- generate=false 完全本機；true 須明確上雲確認，且有 hits 才呼叫模型。RAG 共享欄位抽取的 Bedrock 鎖、gate、有限重試與憑證鏈；快取隔離 prompt／model／region／問題與完整 hits。
+- 資料來源綁定及 OCR 內容不等於規則核准；本次無 approved rules 自動提升、無估價運算、無基準自動切換、無 v2 API。v2 的主體／多標的及核准模型仍留給 DDD-01／04。
