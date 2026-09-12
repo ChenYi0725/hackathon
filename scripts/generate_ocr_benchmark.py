@@ -40,6 +40,24 @@ def generate(font_path, output):
         image.save(output / f'{name}.png')
         truth.append({'file': f'{name}.pdf', 'width': image.width, 'height': image.height, 'cells': cells})
     (output / 'truth.json').write_text(json.dumps(truth, ensure_ascii=False, indent=2))
+    # A held-out ruleset layout exercises the actual coordinate-based compiler.
+    image = Image.new('RGB', (2000, 2800), 'white')
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.truetype(str(font_path), 30)
+    def label(text, x, y):
+        draw.text((x * 2, y * 2), text, font=font, fill='black')
+    label('測試市甲區住宅用地影響地價區域因素評價基準明細表', 100, 20)
+    for text, x in [('主要項目', 80), ('細項', 210), ('價格修正率', 330), ('備註', 700)]:
+        label(text, x, 80)
+    for index, char in enumerate('數值因素'):
+        label(char, 215, 165 + index * 24)
+    for row, values in enumerate([(0, 5, 10), (-5, 0, 5), (-10, -5, 0)]):
+        for col, value in enumerate(values):
+            label(str(value), 330 + col * 110, 200 + row * 45)
+    for row, text in enumerate(['優：80%以上', '普通：60%以上未滿80%', '劣：未滿60%']):
+        label(text, 700, 200 + row * 45)
+    image.save(output / 'ruleset.pdf', resolution=180)
+    image.save(output / 'ruleset.png')
 
 
 if __name__ == '__main__':
