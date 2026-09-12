@@ -10,3 +10,6 @@ data/uploads/
 test-results/
 node_modules/
 playwright-report/
+problem_files/
+gov_files/
+example_files/
