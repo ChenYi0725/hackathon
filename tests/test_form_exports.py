@@ -3,14 +3,13 @@ from pathlib import Path
 
 import pytest
 from openpyxl import Workbook, load_workbook
-from pypdf import PdfReader
 from fastapi.testclient import TestClient
 
 from app.application.export_contracts import ExportUnavailable
 from app.domain.sample import sample_case
 from app.domain.rules import default_rules
 from app.domain.engine import review
-from app.infrastructure.form_exports import TemplateFormRenderer, TEMPLATES, pdf_font
+from app.infrastructure.form_exports import TemplateFormRenderer, TEMPLATES
 from app.infrastructure.settings import Settings
 from app.interfaces.http import create_app
 
@@ -74,22 +73,15 @@ def test_legacy_openpyxl_defined_name_collection_is_supported(templates, monkeyp
     assert artifact.data.startswith(b'PK')
 
 
-def test_pdf_report_and_forms_have_values_and_multiple_pages(templates):
-    try:
-        pdf_font()
-    except (ExportUnavailable, ImportError):
-        pytest.skip('Set PDF_FONT_PATH to an installed Traditional Chinese TrueType font')
-    case = sample_case(False)
-    case.notes = '<script>literal text</script>\n' + '長文字內容' * 100
-    for kind in ('report-pdf', 'table3-pdf', 'table4-pdf', 'table5-pdf'):
-        artifact = render(TemplateFormRenderer(templates), kind, case)
-        assert artifact.data.startswith(b'%PDF-')
-        reader = PdfReader(io.BytesIO(artifact.data))
-        content = '\n'.join(p.extract_text() for p in reader.pages)
-        assert '長文字內容' in content
-        assert '待確認' in content
-        assert str(case.totals.trial_price) in content
-        assert len(reader.pages) >= 2
+@pytest.mark.parametrize('kind', ['report-pdf', 'table3-pdf', 'table4-pdf', 'table5-pdf'])
+def test_pdf_exports_are_removed(templates, tmp_path, kind):
+    with pytest.raises(KeyError):
+        render(TemplateFormRenderer(templates), kind)
+    app = create_app(Settings(data_dir=tmp_path / 'data', form_template_dir=templates, ai_enabled=False))
+    with TestClient(app) as client:
+        case = client.get('/api/cases').json()[0]
+        response = client.get(f'/api/cases/{case["id"]}/export/{kind}?revision=1')
+        assert response.status_code == 404
 
 
 def test_exports_require_revision_and_do_not_mutate_case(templates, tmp_path):

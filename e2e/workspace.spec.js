@@ -46,7 +46,7 @@ test('dashboard, evidence, fix, edit, persist and export', async ({ page }) => {
   await expect(page.getByRole('dialog')).toContainText('採用建議：面前道路寬度');
   await page.getByRole('button',{name:'關閉',exact:true}).click();
   await page.getByRole('button',{name:'匯出成果',exact:true}).click();
-  const href=await page.getByRole('link',{name:'審查報告 · 列印 / 另存 PDF ↗'}).getAttribute('href');
+  const href=await page.getByRole('link',{name:'審查報告 · HTML ↗'}).getAttribute('href');
   const report=await page.request.get(href);
   expect(report.status()).toBe(200);
   expect(await report.text()).toContain('尚有疑點或待確認項目');

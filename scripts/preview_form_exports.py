@@ -10,7 +10,7 @@ from app.infrastructure.form_exports import TemplateFormRenderer
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--template-dir', type=Path, default=Path('problem_files'))
+    parser.add_argument('--template-dir', type=Path, default=Path('out_put_teamplate'))
     parser.add_argument('--out', type=Path, default=Path('.analysis/form-preview'))
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
@@ -25,16 +25,11 @@ def main():
                       trial_price=123456, weight=100, absolute=0))
     renderer = TemplateFormRenderer(args.template_dir)
     result = review(case, rules)
-    for kind in ['report-pdf', 'table3-xlsx', 'table4-xlsx', 'table5-xlsx',
-                 'table3-pdf', 'table4-pdf', 'table5-pdf']:
+    for kind in ['table3-xlsx', 'table4-xlsx', 'table5-xlsx']:
         artifact = renderer.render(case, result, rules, kind, '2026-09-12T00:00:00Z')
         output = args.out / artifact.filename
         output.write_bytes(artifact.data)
         print(output)
-        if kind.endswith('pdf'):
-            import pypdfium2
-            document = pypdfium2.PdfDocument(artifact.data)
-            document[0].render(scale=1.3).to_pil().save(output.with_suffix('.png'))
 
 
 if __name__ == '__main__':

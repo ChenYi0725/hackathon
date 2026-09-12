@@ -1,16 +1,13 @@
-"""Fill the supplied worksheets and render the same values to PDF.
+"""Fill the supplied worksheets and export Excel workbooks.
 
 Only presentation mappings live here. No valuation arithmetic or Excel formulas
 are executed. Missing fields stay explicit; the original templates are read-only.
 """
 import io
 import hashlib
-import os
 import warnings
 from copy import copy
-from functools import lru_cache
 from pathlib import Path
-from xml.sax.saxutils import escape
 from zipfile import BadZipFile
 
 from app.application.export_contracts import ExportArtifact, ExportUnavailable
@@ -55,24 +52,6 @@ def put(ws, address, value):
     font = copy(cell.font)
     font.color = '8A5200' if '待' in str(cell.value) or '未提供' in str(cell.value) else '174E44'
     cell.font = font
-
-
-@lru_cache(maxsize=1)
-def pdf_font():
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.pdfbase.ttfonts import TTFError
-    candidates = [os.getenv('PDF_FONT_PATH'),
-                  str(Path(os.getenv('WINDIR', 'C:/Windows')) / 'Fonts/msjh.ttc'),
-                  '/usr/share/fonts/truetype/arphic/uming.ttc']
-    for candidate in candidates:
-        if candidate and Path(candidate).is_file():
-            try:
-                pdfmetrics.registerFont(TTFont('ExportChinese', candidate))
-            except TTFError as error:
-                raise ExportUnavailable('PDF_FONT_PATH 字型無法嵌入；請使用 TrueType 輪廓的繁體中文字型。') from error
-            return 'ExportChinese'
-    raise ExportUnavailable('PDF 中文字型未設定；請以 PDF_FONT_PATH 指定支援繁體中文的 TrueType 字型。')
 
 
 class TemplateFormRenderer:
@@ -202,131 +181,11 @@ class TemplateFormRenderer:
                    r['message'], r.get('page'), r.get('rule_page')]
 
     def render(self, case, result, rules, kind, generated_at):
-        if kind == 'report-pdf':
-            data = self.report_pdf(case, result, rules, generated_at)
-            extension = 'pdf'
-        else:
-            parts = kind.split('-')
-            if len(parts) != 2 or parts[0] not in ('table3', 'table4', 'table5') or parts[1] not in ('xlsx', 'pdf'):
-                raise KeyError(kind)
-            number, extension = parts[0][-1], parts[1]
-            wb = self.workbook(case, result, rules, number, generated_at)
-            if extension == 'xlsx':
-                stream = io.BytesIO()
-                wb.save(stream)
-                data = stream.getvalue()
-            else:
-                data = self.workbook_pdf(wb, case, generated_at, TEMPLATES[number][2:])
-        media = 'application/pdf' if extension == 'pdf' else 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        return ExportArtifact(data, f'{kind.rsplit("-", 1)[0]}-{case.id}-r{case.revision}.{extension}', media, case.revision)
-
-    @staticmethod
-    def report_pdf(case, result, rules, generated_at):
-        from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.lib.styles import ParagraphStyle
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, LongTable, TableStyle, Spacer
-        font = pdf_font()
-        style = ParagraphStyle('Chinese', fontName=font, fontSize=9, leading=13, wordWrap='CJK')
-        p = lambda value: Paragraph(escape(text(value)).replace('\n', '<br/>'), style)
+        if kind not in ('table3-xlsx', 'table4-xlsx', 'table5-xlsx'):
+            raise KeyError(kind)
+        wb = self.workbook(case, result, rules, kind[5], generated_at)
         stream = io.BytesIO()
-        doc = SimpleDocTemplate(stream, pagesize=landscape(A4), leftMargin=28, rightMargin=28,
-                                topMargin=28, bottomMargin=28, title=case.title)
-        rows = [[p(v) for v in ['檢核項目', '狀態', '原填值', '預期值', '依據與說明']]]
-        for r in result['checks']:
-            rows.append([p(v) for v in [r['title'], STATUS[r['status']], r.get('actual'), r.get('expected'),
-                f'{r["message"]}\n原文 p.{text(r.get("page"))}／基準 p.{text(r.get("rule_page"))}']])
-        table = LongTable(rows, colWidths=[132, 58, 65, 65, 465], repeatRows=1, splitInRow=1)
-        table.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), .3, '#9DAFA8'),
-                                  ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                                  ('BACKGROUND', (0, 0), (-1, 0), '#EAF3EF')]))
-        doc.build([p('地衡｜逐項審查結果'), p(case.title),
-            p(f'案件 {case.id}｜版本 {case.revision}｜基準 {rules["id"]}/{rules["version"]}'),
-            p(f'比準地 {case.subject_name}／比較標的 {case.comparable_name}｜基準日 {case.valuation_date}'),
-            p('輔助審查草稿；' + ('全部檢核通過' if result['complete'] else '尚有疑點或待確認項目')),
-            p(case.notes), p(generated_at), Spacer(1, 12), table])
-        return stream.getvalue()
-
-    @staticmethod
-    def workbook_pdf(wb, case, generated_at, size):
-        from reportlab.pdfgen.canvas import Canvas
-        from reportlab.lib.pagesizes import A3, landscape
-        from reportlab.pdfbase.pdfmetrics import stringWidth
-        from openpyxl.cell.cell import MergedCell
-        from openpyxl.utils import get_column_letter
-        font = pdf_font()
-        stream = io.BytesIO()
-        page_w, page_h = landscape(A3)
-        canvas = Canvas(stream, pagesize=(page_w, page_h))
-        canvas.setTitle(case.title)
-        rows, cols = size
-        overflow = []
-        detail_sheet = wb.worksheets[-1] if wb.worksheets and wb.worksheets[-1].title == '填值與審核明細' else None
-        for ws in wb.worksheets:
-            if ws is detail_sheet or ws.sheet_state == 'hidden':
-                continue
-            page_w, page_h = A3 if ws.page_setup.orientation == 'portrait' else landscape(A3)
-            canvas.setPageSize((page_w, page_h))
-            widths = [max(12, ws.column_dimensions[get_column_letter(c)].width * 5.2) for c in range(1, cols + 1)]
-            heights = [max(15, ws.row_dimensions[r].height or 18) for r in range(1, rows + 1)]
-            scale = min((page_w - 48) / sum(widths), (page_h - 80) / sum(heights))
-            xs, ys = [24], [page_h - 48]
-            for width in widths: xs.append(xs[-1] + width * scale)
-            for height in heights: ys.append(ys[-1] - height * scale)
-            merges = {(m.min_row, m.min_col): (m.max_row, m.max_col) for m in ws.merged_cells.ranges}
-            canvas.setFont(font, 9)
-            canvas.drawString(24, page_h - 25, f'{ws.title}｜案件版本 {case.revision}｜原填值草稿；待補欄位詳見附錄')
-            for row in ws.iter_rows(max_row=rows, max_col=cols):
-                for cell in row:
-                    if isinstance(cell, MergedCell): continue
-                    r, c = cell.row, cell.column
-                    end_r, end_c = merges.get((r, c), (r, c))
-                    end_r, end_c = min(end_r, rows), min(end_c, cols)
-                    x, y, width, height = xs[c-1], ys[end_r], xs[end_c]-xs[c-1], ys[r-1]-ys[end_r]
-                    canvas.setStrokeColorRGB(.65, .69, .67)
-                    canvas.setLineWidth(.25)
-                    if any(side and side.style for side in (cell.border.left, cell.border.right, cell.border.top, cell.border.bottom)):
-                        canvas.rect(x, y, width, height)
-                    if cell.value is None: continue
-                    value = str(cell.value)
-                    font_size = min(9, max(5, (cell.font.sz or 10) * scale))
-                    while True:
-                        lines, line = [], ''
-                        for char in value:
-                            if char == '\n' or stringWidth(line + char, font, font_size) > width - 4:
-                                lines.append(line); line = '' if char == '\n' else char
-                            else: line += char
-                        lines.append(line)
-                        if len(lines) * font_size * 1.1 <= height - 2 or font_size <= 3: break
-                        font_size -= .25
-                    if len(lines) * font_size * 1.1 > height - 2:
-                        overflow.append([ws.title, cell.coordinate, value])
-                        lines = ['全文見附錄']
-                        font_size = min(5, max(2, (width - 4) / 5))
-                    canvas.setFillColorRGB(.10, .19, .16)
-                    canvas.setFont(font, font_size)
-                    for i, line in enumerate(lines):
-                        canvas.drawString(x+2, y+height-font_size-1-i*font_size*1.1, line)
-            canvas.setFont(font, 8)
-            canvas.drawString(24, 22, f'基準 {case.ruleset_id}｜{generated_at}｜缺值未補零；簽章欄由承辦人填寫')
-            canvas.showPage()
-        # Include all input values and review statuses, even those that do not
-        # have a corresponding cell in the selected template.
-        from pypdf import PdfReader, PdfWriter
-        canvas.save()
-        writer = PdfWriter()
-        writer.append(PdfReader(io.BytesIO(stream.getvalue())))
-        # Render the literal detail rows as a paginated appendix.
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, LongTable, TableStyle
-        from reportlab.lib.styles import ParagraphStyle
-        appendix = io.BytesIO()
-        style = ParagraphStyle('Detail', fontName=font, fontSize=8, leading=11, wordWrap='CJK')
-        data = [[Paragraph(escape(text(c.value)), style) for c in row] for row in wb.worksheets[-1]]
-        for row in overflow:
-            data.append([Paragraph(escape(text(v)), style) for v in row] + [''] * 4)
-        table = LongTable(data, colWidths=[135, 150, 150, 85, 180, 60, 340], splitInRow=1)
-        table.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), .3, '#AAAAAA'), ('VALIGN', (0, 0), (-1, -1), 'TOP')]))
-        SimpleDocTemplate(appendix, pagesize=landscape(A3), leftMargin=35, rightMargin=35).build([table])
-        writer.append(PdfReader(io.BytesIO(appendix.getvalue())))
-        output = io.BytesIO()
-        writer.write(output)
-        return output.getvalue()
+        wb.save(stream)
+        return ExportArtifact(
+            stream.getvalue(), f'{kind.rsplit("-", 1)[0]}-{case.id}-r{case.revision}.xlsx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', case.revision)
