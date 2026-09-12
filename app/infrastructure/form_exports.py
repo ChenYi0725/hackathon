@@ -103,7 +103,17 @@ class TemplateFormRenderer:
         if not any('A1' in merged for merged in ws.merged_cells.ranges):
             ws.merge_cells(f'A1:{get_column_letter(cols)}1')
         # Remove template example formulas, names and links into hidden examples.
-        wb.defined_names.clear()
+        # openpyxl 3.0 exposes defined names as ``DefinedNameList.definedName``
+        # and does not implement ``clear()`` (newer releases may expose a
+        # dict-like collection).  Clear the underlying list when available so
+        # exports work with both supported API shapes.
+        defined_names = wb.defined_names
+        if hasattr(defined_names, 'clear'):
+            defined_names.clear()
+        elif hasattr(defined_names, 'definedName'):
+            defined_names.definedName.clear()
+        else:
+            wb.defined_names = type(defined_names)()
         for row in ws:
             for cell in row:
                 if cell.data_type == 'f':

@@ -65,10 +65,19 @@ def test_workbooks_fill_separate_forms_keep_zero_and_literal_text(templates):
     assert all(p.read_bytes() == data for p, data in source_bytes.items())
 
 
+def test_legacy_openpyxl_defined_name_collection_is_supported(templates, monkeypatch):
+    """The deployed Anaconda image uses openpyxl 3.0's DefinedNameList."""
+    import openpyxl.workbook.defined_name as defined_name_module
+    legacy = defined_name_module.DefinedNameList
+    assert hasattr(legacy(), 'definedName')
+    artifact = render(TemplateFormRenderer(templates), 'table3-xlsx')
+    assert artifact.data.startswith(b'PK')
+
+
 def test_pdf_report_and_forms_have_values_and_multiple_pages(templates):
     try:
         pdf_font()
-    except ExportUnavailable:
+    except (ExportUnavailable, ImportError):
         pytest.skip('Set PDF_FONT_PATH to an installed Traditional Chinese TrueType font')
     case = sample_case(False)
     case.notes = '<script>literal text</script>\n' + '長文字內容' * 100
