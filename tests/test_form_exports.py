@@ -46,14 +46,14 @@ def test_workbooks_fill_separate_forms_keep_zero_and_literal_text(templates):
     for number in ('3', '4', '5'):
         artifact = render(TemplateFormRenderer(templates), f'table{number}-xlsx', case)
         wb = load_workbook(io.BytesIO(artifact.data))
-        assert '隱藏範例' not in wb.sheetnames
+        assert '隱藏範例' in wb.sheetnames
         assert '填值與審核明細' in wb.sheetnames
-        assert all(c.data_type != 'f' for w in wb for row in w for c in row)
+        if number == '3':
+            assert wb['表3區段勘查表']['A2'].data_type == 'f'
         assert 'A1:C1' in str(wb.active.merged_cells)
         if number == '3':
             assert len(wb.worksheets) == 3
-            assert case.subject_section == wb.worksheets[0]['G3'].value
-            assert case.comparable_section == wb.worksheets[1]['G3'].value
+            assert case.subject_section == wb['表3區段勘查表']['G3'].value
         if number == '4':
             assert wb.active['D4'].value == case.subject_name
             assert wb.active['D4'].data_type == 's'

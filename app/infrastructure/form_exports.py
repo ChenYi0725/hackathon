@@ -94,32 +94,13 @@ class TemplateFormRenderer:
                 raise ExportUnavailable(f'表{number} 模板不是有效的 XLSX 檔案。') from error
         if sheet_name not in wb:
             raise ExportUnavailable(f'表{number} 模板缺少指定工作表。')
-        for sheet in list(wb):
-            if sheet.title != sheet_name:
-                wb.remove(sheet)
         ws = wb[sheet_name]
         ws.sheet_state = 'visible'
         from openpyxl.utils import get_column_letter
-        if not any('A1' in merged for merged in ws.merged_cells.ranges):
-            ws.merge_cells(f'A1:{get_column_letter(cols)}1')
-        # Remove template example formulas, names and links into hidden examples.
-        # openpyxl 3.0 exposes defined names as ``DefinedNameList.definedName``
-        # and does not implement ``clear()`` (newer releases may expose a
-        # dict-like collection).  Clear the underlying list when available so
-        # exports work with both supported API shapes.
-        defined_names = wb.defined_names
-        if hasattr(defined_names, 'clear'):
-            defined_names.clear()
-        elif hasattr(defined_names, 'definedName'):
-            defined_names.definedName.clear()
-        else:
-            wb.defined_names = type(defined_names)()
-        for row in ws:
-            for cell in row:
-                if cell.data_type == 'f':
-                    put(ws, cell.coordinate, '待確認')
-                if cell.hyperlink:
-                    cell.hyperlink = None
+        # Keep the source workbook's original sheets, formulas, names, links,
+        # dimensions and print layout.  We only write the mapped input cells;
+        # this is a filled copy of the supplied blank form, rather than a new
+        # workbook assembled from cells.
         factors = {f.id: f for f in case.factors}
         def factor(fid, side):
             f = factors.get(fid)
@@ -127,25 +108,23 @@ class TemplateFormRenderer:
         note = (f'{case.title}｜案件 {case.id}｜版本 {case.revision}｜{case.locality} {case.land_use}｜'
                 f'基準 {rules["id"]}/{rules["version"]}｜原填值草稿；待補／未確認值不得視為已核准')
         if number == '3':
-            other = wb.copy_worksheet(ws)
-            ws.title, other.title = '表3-比準地', '表3-比較標的1'
-            for sheet, side in [(ws, 'subject'), (other, 'comparable')]:
-                put(sheet, 'B3', case.valuation_date)
-                put(sheet, 'G3', getattr(case, side + '_section'))
-                put(sheet, 'L3', f'{case.locality} {getattr(case, side + "_name")}；範圍待核對')
-                for address, fid in SURVEY.items():
-                    put(sheet, address, factor(fid, side))
+            side = 'subject'
+            put(ws, 'B3', case.valuation_date)
+            put(ws, 'G3', getattr(case, side + '_section'))
+            put(ws, 'L3', f'{case.locality} {getattr(case, side + "_name")}；比較標的：{case.comparable_name}；範圍待核對')
+            for address, fid in SURVEY.items():
+                put(ws, address, factor(fid, side))
                 # Facility type/name is not represented by the legacy case. Do not
                 # turn a generic station distance into a high-speed-rail distance.
-                for address in ['F11', 'F13', 'F14', 'F15', 'F16', 'F17', 'G18',
+            for address in ['F11', 'F13', 'F14', 'F15', 'F16', 'F17', 'G18',
                     'F19', 'I20', 'I21', 'I22', 'E31', 'E32', 'E33', 'E34',
                     'F35', 'F36', 'F37', 'F38', 'F39', 'F40', 'F41', 'F42', 'F43', 'F44',
                     'R4', 'R6', 'R8', 'R10', 'R11', 'R12', 'R14', 'R16',
                     'R18', 'R19', 'R20', 'R21', 'R22', 'R23', 'R24', 'R25',
                     'R26', 'R27', 'R28', 'R29', 'S30', 'S32', 'S34', 'S36',
                     'R42', 'R43', 'Q44']:
-                    put(sheet, address, '待補（見填值明細）')
-                put(sheet, 'L40', f'版本 {case.revision}｜草稿；完整資料見明細')
+                put(ws, address, '待補（見填值明細）')
+            put(ws, 'L40', f'版本 {case.revision}｜草稿；完整資料見明細')
         elif number == '4':
             put(ws, 'L1', case.valuation_date)
             put(ws, 'O1', '案號：' + text(case.case_number))
@@ -281,7 +260,10 @@ class TemplateFormRenderer:
         canvas.setTitle(case.title)
         rows, cols = size
         overflow = []
-        for ws in list(wb)[:-1]:
+        detail_sheet = wb.worksheets[-1] if wb.worksheets and wb.worksheets[-1].title == '填值與審核明細' else None
+        for ws in wb.worksheets:
+            if ws is detail_sheet or ws.sheet_state == 'hidden':
+                continue
             page_w, page_h = A3 if ws.page_setup.orientation == 'portrait' else landscape(A3)
             canvas.setPageSize((page_w, page_h))
             widths = [max(12, ws.column_dimensions[get_column_letter(c)].width * 5.2) for c in range(1, cols + 1)]
