@@ -2,6 +2,47 @@
 
 本機估價審查工作台。上傳的 PDF 由 **PaddleOCR 在 CPU 辨識**；需要 AI 整理欄位時，使用 **Amazon Bedrock**。計算、級距與矩陣仍由確定性規則引擎執行，AI 回傳草稿須人工確認。
 
+## 目前專案架構
+
+目前由本機執行網站、OCR、規則計算及資料保存，AWS 提供模型推論。圖中的箭頭表示執行流程；應用層透過 ports 使用基礎設施，由 `bootstrap.py` 注入具體實作。
+
+```mermaid
+flowchart TB
+    USER["使用者瀏覽器<br/>上傳 PDF、核對草稿、審查與匯出"]
+
+    subgraph LOCAL["本機：DDD 模組化單體"]
+        HTTP["介面層 interfaces<br/>FastAPI 路由與 HTTP 回應"]
+        APP["應用層 application<br/>案件用例、PDF 匯入、AI 草稿與來源驗證"]
+        DOMAIN["領域層 domain<br/>Case、Factor、Evidence<br/>級距、矩陣與審查計算"]
+
+        subgraph INFRA["基礎設施層 infrastructure"]
+            OCR["PDF adapter<br/>PDFium 轉圖 → PaddleOCR<br/>CPU 子程序辨識"]
+            AI["AI adapter<br/>Bedrock Converse<br/>快取、節流與有限重試"]
+            REPO["Repository adapter<br/>SQLite 與本機檔案存取"]
+        end
+
+        DB[("SQLite<br/>案件、基準版本、修訂紀錄<br/>OCR 文字與抽取快取")]
+        FILES["本機 PDF 檔案<br/>data/uploads/"]
+    end
+
+    subgraph CLOUD["AWS：us-west-2"]
+        MODEL["Amazon Bedrock<br/>qwen.qwen3-32b-v1:0"]
+    end
+
+    USER <--> HTTP
+    HTTP --> APP
+    APP --> DOMAIN
+    APP -->|PdfReader| OCR
+    APP -->|FieldExtractor| AI
+    APP -->|ReviewRepository| REPO
+    REPO --> DB
+    REPO --> FILES
+    AI -->|確認可上雲後：OCR 文字與因素定義| MODEL
+    MODEL -->|欄位草稿與來源行號| AI
+```
+
+上傳先走 PaddleOCR，再保存原始 PDF、辨識文字與待確認案件。AI 抽取由使用者另外啟動，預覽不修改案件；套用後仍須人工核對，估價判定由領域規則引擎執行。目前保留單一比較標的，尚未部署 AWS 主機。
+
 ## 快速開始（macOS / Linux，Python 3.12）
 
 ```bash
