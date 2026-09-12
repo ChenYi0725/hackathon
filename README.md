@@ -10,13 +10,13 @@
 
 ## 目前專案架構
 
-目前由本機執行網站、OCR、規則計算及資料保存，AWS 提供模型推論。圖中的箭頭表示執行流程；應用層透過 ports 使用基礎設施，由 `bootstrap.py` 注入具體實作。
+網站、OCR、規則計算及資料保存可在本機或 AWS EC2 單機執行，AWS Bedrock 提供模型推論。部署與存取方式見 [AWS 部署](docs/aws-deployment.md)。圖中的箭頭表示執行流程；應用層透過 ports 使用基礎設施，由 `bootstrap.py` 注入具體實作。
 
 ```mermaid
 flowchart TB
     USER["使用者瀏覽器<br/>上傳 PDF、核對草稿、審查與匯出"]
 
-    subgraph LOCAL["本機：DDD 模組化單體"]
+    subgraph LOCAL["服務主機（本機或 EC2）：DDD 模組化單體"]
         HTTP["介面層 interfaces<br/>FastAPI 路由與 HTTP 回應"]
         APP["應用層 application<br/>案件用例、PDF 匯入、AI 草稿與來源驗證"]
         DOMAIN["領域層 domain<br/>Case、Factor、Evidence<br/>級距、矩陣與審查計算"]
@@ -51,7 +51,7 @@ flowchart TB
     MODEL -->|欄位草稿與來源行號| AI
 ```
 
-上傳先走所選 OCR 引擎，再保存原始 PDF、辨識文字與待確認案件。AI 抽取由使用者另外啟動，預覽不修改案件；套用後仍須人工核對，估價判定由領域規則引擎執行。目前保留單一比較標的，尚未部署 AWS 主機。
+上傳先走所選 OCR 引擎，再保存原始 PDF、辨識文字與待確認案件。AI 抽取由使用者另外啟動，預覽不修改案件；套用後仍須人工核對，估價判定由領域規則引擎執行。目前保留單一比較標的；AWS 使用相同程式與 ports，單機部署方式見 [部署文件](docs/aws-deployment.md)。
 
 ## 基準文件 RAG
 
@@ -124,7 +124,7 @@ flowchart TB
 | 指定主要部署區域為 `us-east-1`、`us-west-2` | 程式只接受這兩區，預設 `us-west-2`；本版使用區域內模型 ID，拒絕跨區 inference profile |
 | 僅使用必要模型與資源，不建議大規模訓練 | 本機 CPU 執行 PaddleOCR，需要 AI 時才呼叫設定的模型；目前沒有模型訓練流程 |
 | GitHub 不得包含機密憑證 | `.env` 被 Git 忽略，保留不含金鑰的 `.env.example`；AWS SDK 從 profile、環境或 role 讀取憑證 |
-| S3 不可公開、EC2 Security Group 不可完全開放、RDS／EMR 不可公開存取 | 目前沒有部署這些雲端資源；未來部署須依規範及支援服務清單另行配置 |
+| S3 不可公開、EC2 Security Group 不可完全開放、RDS／EMR 不可公開存取 | AWS 單機部署使用指定 IP 的 Security Group；不建立 S3、RDS 或 EMR |
 
 本機節流只涵蓋共用相同資料目錄的應用程序，不會限制同帳號其他工具或其他主機的模型請求；團隊使用 AWS CLI 或新增服務時仍須共同遵守帳號的請求限制。
 
@@ -252,7 +252,7 @@ OCR 在獨立子程序執行；超過時間會終止，不把 AWS 憑證環境�
 - OCR 使用 CPU，不依賴配額為 0 的 EC2 G / P GPU 系列。
 - Bedrock 每次呼叫及重試都通過跨程序鎖與持久化節流；SDK 自動重試已關閉。相同 PDF / OCR 設定及相同 AI 輸入 / 模型 / 基準 / prompt 版本可重用快取。
 - 呼叫前須確認資料符合規範。禁止個資、財務資訊等受限資料；附件價格資料的適用界線須由主辦說明，程式中的勾選不是自動合規認證。
-- 本次沒有建立 AWS 主機、S3、RDS 或對外服務。未來部署須符合私有 S3、必要 Security Group 權限與非公開資料庫等要求。
+- AWS 單機部署使用 EC2、IAM role 與 Systems Manager，網站入口限定指定 IP；不建立 S3 或 RDS。
 
 目前的協調機制適用於**單台主機、共用 SQLite 與鎖檔**。多台 EC2 各自儲存的資料庫無法共用節流；擴充時需改用集中式請求工作程序。應用程式也無法限制同帳號中其他程式自行呼叫 Bedrock。
 
@@ -369,7 +369,7 @@ npm run test:e2e
 表4／表5模板 adapter 保留既有欄位座標，因此新增地區或新因素應以完整審查 Excel 為準，
 不能把固定模板中未對應的儲存格視為已完成。AI 引用存在也不保證左右欄對應正確。
 
-沒有多人帳號、正式簽章、分散式任務佇列或正式 AWS 部署；預設僅監聽 `127.0.0.1`。
+沒有多人帳號、正式簽章或分散式任務佇列；本機預設僅監聽 `127.0.0.1`。AWS 競賽測試部署由 Nginx 對指定 IP 提供 HTTP，管理走 SSM；TLS、備份與更新限制見 [AWS 部署](docs/aws-deployment.md)。
 
 ## 實作依據
 

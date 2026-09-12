@@ -67,7 +67,7 @@ bootstrap.py 負責選擇具體 adapter 並注入。
 
 目前採單機 SQLite 與共用鎖檔，沒有分散式佇列。HTTP 呼叫期間等待 OCR 或 AI，介面顯示處理中；程序重啟後使用者需重新提交，成功快取可重用。
 
-AWS 主機的對外存取、登入、備份與多機協調尚未在本次部署。上雲前必須遵守競賽資料規範；不得因題目由主辦提供，就推定其中價格資料允許上雲。
+AWS 單機部署由 Nginx 提供限制來源 IP 的 HTTP 入口，管理走 SSM，Bedrock 憑證由 instance role 提供。TLS、應用程式登入、自動備份與多機協調仍未提供；詳見 [AWS 部署](aws-deployment.md)。上雲前必須遵守競賽資料規範；不得因題目由主辦提供，就推定其中價格資料允許上雲。
 
 ## 基準文件 RAG
 
@@ -84,3 +84,14 @@ AWS 主機的對外存取、登入、備份與多機協調尚未在本次部署�
 ## Agentic RAG
 
 `AgenticRagService` 讓模型透過 `AgentModel` 選擇四個已註冊函式：搜尋、來源讀頁、查看規則及 domain 審查。Bedrock adapter 負責原生 toolUse／toolResult；工具由 application 執行，不讓模型直接操作 Python 或資料庫。迴圈受 revision、工具白名單、引用驗證及次數限制。詳見 [Agentic RAG](agentic-rag.md)。
+
+
+## 計算欄位來源相容性
+
+`Case.total_evidence` 是總計欄位名稱至 `Evidence` 的選用映射，預設為空。
+版型抽取保存實際頁碼與引文；domain 審查僅使用已保存來源，不以表號推定頁碼。
+修改總計值、替換／移除文件時清除過期引用，引用修改也須重新人工確認。
+application 保存時核對引用確實位於連結文件；沒有連結文件的 JSON 匯入不保留總計引用。
+舊案件與歷史 JSON 不回填或重寫，數值與確認狀態不變；未記錄來源的總計在 UI／HTML 顯示
+「未記錄來源頁碼」，CSV／Excel 頁碼留白。SQLite 仍儲存 JSON，沒有 schema 遷移。
+舊版程式不認得新增的 JSON 欄位；回退舊版前須備份並使用升版前資料，或另做保留數值與修訂的欄位相容轉換。
