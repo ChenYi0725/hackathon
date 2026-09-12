@@ -250,6 +250,36 @@ OCR 在獨立子程序執行；超過時間會終止，不把 AWS 憑證環境�
 
 基準庫驗證矩陣尺寸、有限數值、同級零修正、重複分類及重疊級距。它無法認證使用者輸入的規則是否適合法規或案件。自訂版本需記錄正確來源，並自行確認。
 
+### 評價基準明細表轉 structured ruleset
+
+Python application service 可將 PaddleOCR 保留座標的結果，編譯成不綁定行政區、因素名稱、
+級數、門檻或修正率的 structured ruleset 草稿：
+
+```python
+from pathlib import Path
+
+from app.bootstrap import build_ruleset_extraction_service
+from app.infrastructure.settings import Settings
+
+source = Path("評價基準明細表.pdf")
+service = build_ruleset_extraction_service(Settings())
+result = service.extract(
+    source.read_bytes(),
+    source_name=source.name,
+    expected_locality="上游已確認的縣市行政區",
+)
+payload = result.to_dict()
+```
+
+`expected_locality` 只用來核對表格標題，不做地址解析或地理編碼。解析器依 OCR 的表格座標、
+等級列、備註級距與 N×N 矩陣產生規則；不同地區若沿用相同官方表格結構，只需換 PDF 與
+地區文字，不需增加 `if city`、`if district` 或地區專用 grading function。數值以 `Decimal`
+保存，JSON 輸出為字串，不會自行 rounding、補值或修復 OCR 數字。
+
+所有 OCR 結果固定為 `requires_confirmation=True`。未辨識完整、原文有重疊／缺口、或無法
+安全表達的條件會降級為 `manual` 並列入 `warnings`；版型明顯不同的文件會明確失敗，而不
+猜測可執行規則。目前這個入口尚未接到 HTTP、ruleset repository 或既有案件審查流程。
+
 ### 原文件的待確認事項
 
 `評價基準明細表範例.pdf` 第 2 頁「站牌」普通級距印為 `200km以上未滿400m`，第 3 頁「觀光遊憩」稍劣級距印為 `1,000km以上未滿1,500m`。內建規則保存為**封鎖的候選級距**（以 m 表示候選數字），並保留原文警告；不能直接執行判定。須確認來源後建立新版本。
@@ -272,6 +302,15 @@ OCR 在獨立子程序執行；超過時間會終止，不把 AWS 憑證環境�
 
 ```bash
 RUN_OCR_TESTS=1 .venv/bin/python -m pytest tests/test_paddle.py -q
+```
+
+以指定的真實評價基準 PDF 重跑 OCR → structured ruleset（來源檔不進 Git）：
+
+```bash
+RUN_RULESET_OCR_TESTS=1 \
+RULESET_PDF_PATH=/path/to/ruleset.pdf \
+RULESET_LOCALITY=某縣市某區 \
+.venv/bin/python -m pytest tests/test_ruleset_ocr_integration.py -q
 ```
 
 走完整 HTTP 上傳、PaddleOCR、Bedrock 預覽、來源驗證及快取流程：
@@ -298,10 +337,11 @@ npm run test:e2e
 
 ## 目前功能邊界
 
-目前應用流程仍是金山商業用地、單一比較標的範例。樹林普通住宅已具備獨立的純 domain
-計算、分級與價格修正率 API，但尚未接入案件模型、ruleset repository 或 HTTP；因此仍不能視為
-已完成三筆比較標的流程或官方表格套印。PaddleOCR 能辨識更多 PDF，也不代表已完成不同案件的
-端到端流程。保留 OCR 框座標供後續定位，目前介面仍以頁與文字引用對照。AI 引用存在不保證左右欄對應正確。
+目前應用流程仍是金山商業用地、單一比較標的範例。通用 domain engine 與
+OCR → structured ruleset 草稿服務已可獨立呼叫，但尚未接入案件模型、ruleset repository 或
+HTTP；因此仍不能視為已完成三筆比較標的流程或官方表格套印。PaddleOCR 能辨識更多 PDF，
+也不代表已完成不同案件的端到端流程。保留 OCR 框座標供後續定位，目前介面仍以頁與文字
+引用對照。AI 引用存在不保證左右欄對應正確。
 
 沒有多人帳號、正式簽章、分散式任務佇列或正式 AWS 部署；預設僅監聽 `127.0.0.1`。
 
