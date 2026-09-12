@@ -90,7 +90,9 @@ class TemplateFormRenderer:
             side = 'subject'
             put(ws, 'B3', case.valuation_date)
             put(ws, 'G3', getattr(case, side + '_section'))
-            put(ws, 'L3', f'{case.locality} {getattr(case, side + "_name")}；比較標的：{case.comparable_name}；範圍待核對')
+            subject_location = case.subject_address or getattr(case, side + '_name')
+            comparable_location = case.comparable_address or case.comparable_name
+            put(ws, 'L3', f'{case.locality} {subject_location}；比較標的：{comparable_location}；範圍待核對')
             for address, fid in SURVEY.items():
                 put(ws, address, factor(fid, side))
                 # Facility type/name is not represented by the legacy case. Do not
@@ -166,6 +168,7 @@ class TemplateFormRenderer:
     @staticmethod
     def detail_rows(case, result, rules, generated_at):
         yield ['案件', case.title, '版本', case.revision]
+        yield ['比準地地址', case.subject_address, '比較標的地址', case.comparable_address]
         yield ['基準', rules['id'], '基準版本', rules['version']]
         yield ['產出時間', generated_at, '狀態', '原填值草稿；詳見審核結果']
         yield ['案件備註', case.notes]
@@ -180,12 +183,99 @@ class TemplateFormRenderer:
             yield [r['title'], STATUS[r['status']], r.get('actual'), r.get('expected'),
                    r['message'], r.get('page'), r.get('rule_page')]
 
+    def review_workbook(self, case, result, rules, generated_at):
+        """Build a locality-neutral workbook from the saved case snapshot."""
+
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Font, PatternFill
+
+        wb = Workbook()
+        summary = wb.active
+        summary.title = '案件摘要'
+        summary_rows = [
+            ['欄位', '內容'],
+            ['案件名稱', case.title],
+            ['案件編號', case.case_number],
+            ['案件版本', case.revision],
+            ['估價基準日', case.valuation_date],
+            ['適用地區', case.locality],
+            ['用地類別', case.land_use],
+            ['比準地', case.subject_name],
+            ['比準地地址', case.subject_address],
+            ['比較標的', case.comparable_name],
+            ['比較標的地址', case.comparable_address],
+            ['評價基準', f'{rules["name"]} / {rules["version"]}'],
+            ['基準來源', rules['source']],
+            ['產出時間', generated_at],
+            ['審查狀態', '完成' if result['complete'] else '尚有待確認或資料不足'],
+        ]
+        for row in summary_rows:
+            _append_literal_row(summary, row)
+
+        factors = {factor.id: factor for factor in case.factors}
+        for scope, title in (('regional', '區域因素'), ('individual', '個別因素')):
+            sheet = wb.create_sheet(title)
+            _append_literal_row(sheet, [
+                '因素', '主要項目', '比準地原值', '比準地等級', '比較標的原值',
+                '比較標的等級', '修正率(%)', '確認狀態', '來源頁', '引用／備註',
+            ])
+            for rule in rules['rules']:
+                if rule['scope'] != scope:
+                    continue
+                factor = factors.get(rule['id'])
+                _append_literal_row(sheet, [
+                    rule['name'], rule['group'],
+                    None if factor is None else factor.subject,
+                    None if factor is None else factor.subject_grade,
+                    None if factor is None else factor.comparable,
+                    None if factor is None else factor.comparable_grade,
+                    None if factor is None else factor.entered_rate,
+                    '已確認' if factor is not None and factor.confirmed else '待確認',
+                    rule['source_page'] if factor is None else factor.evidence.page,
+                    '' if factor is None else (factor.evidence.quote + ' ' + factor.note).strip(),
+                ])
+
+        checks = wb.create_sheet('審查結果')
+        _append_literal_row(checks, ['檢核項目', '狀態', '原填值', '預期值', '說明', '原文頁', '基準頁'])
+        for item in result['checks']:
+            _append_literal_row(checks, [
+                item['title'], STATUS[item['status']], item.get('actual'),
+                item.get('expected'), item['message'], item.get('page'),
+                item.get('rule_page'),
+            ])
+
+        header_fill = PatternFill('solid', fgColor='E8F0EA')
+        for sheet in wb.worksheets:
+            sheet.freeze_panes = 'A2'
+            sheet.auto_filter.ref = sheet.dimensions
+            for cell in sheet[1]:
+                cell.font = Font(bold=True, color='174E44')
+                cell.fill = header_fill
+            for row in sheet.iter_rows():
+                for cell in row:
+                    cell.alignment = Alignment(vertical='top', wrap_text=True)
+            for column in sheet.columns:
+                letter = column[0].column_letter
+                width = min(55, max(12, max(len(str(cell.value or '')) for cell in column) + 2))
+                sheet.column_dimensions[letter].width = width
+        return wb
+
     def render(self, case, result, rules, kind, generated_at):
-        if kind not in ('table3-xlsx', 'table4-xlsx', 'table5-xlsx'):
+        if kind == 'review-xlsx':
+            wb = self.review_workbook(case, result, rules, generated_at)
+        elif kind in ('table3-xlsx', 'table4-xlsx', 'table5-xlsx'):
+            wb = self.workbook(case, result, rules, kind[5], generated_at)
+        else:
             raise KeyError(kind)
-        wb = self.workbook(case, result, rules, kind[5], generated_at)
         stream = io.BytesIO()
         wb.save(stream)
         return ExportArtifact(
             stream.getvalue(), f'{kind.rsplit("-", 1)[0]}-{case.id}-r{case.revision}.xlsx',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', case.revision)
+
+
+def _append_literal_row(sheet, values):
+    sheet.append(list(values))
+    for cell in sheet[sheet.max_row]:
+        if isinstance(cell.value, str):
+            cell.data_type = 's'

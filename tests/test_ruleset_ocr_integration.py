@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from app.application.ruleset_extraction import RulesetExtractionService
+from app.application.ruleset_imports import build_review_candidates
+from app.domain.rule_validation import validate_ruleset
 from app.infrastructure.paddle_pdf import PaddlePdfReader
 from app.infrastructure.ruleset_table import PaddleLayoutRulesetExtractor
 from app.infrastructure.settings import Settings
@@ -48,3 +50,6 @@ def test_real_ruleset_pdf_compiles_to_confirmation_required_drafts(tmp_path):
     payload = result.to_dict()
     assert payload['requires_confirmation'] is True
     assert payload['rulesets']
+    candidates = build_review_candidates(result)
+    assert candidates
+    assert all(validate_ruleset(candidate) for candidate in candidates)

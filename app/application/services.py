@@ -11,10 +11,13 @@ from app.application.export_contracts import ExportUnavailable, FormRenderer
 
 
 class ReviewService:
-    def __init__(self, repository: ReviewRepository, pdf: PdfReader, ai: FieldExtractor, rag: RagService | None = None, renderer: FormRenderer | None = None):
+    def __init__(self, repository: ReviewRepository, pdf: PdfReader, ai: FieldExtractor,
+                 rag: RagService | None = None, renderer: FormRenderer | None = None,
+                 ruleset_import=None):
         self.repository, self.pdf, self.ai = repository, pdf, ai
         self.rag = rag
         self.renderer = renderer
+        self.ruleset_import = ruleset_import
 
     def export_document(self, case_id, kind, revision, generated_at):
         case = self.repository.get_case(case_id)

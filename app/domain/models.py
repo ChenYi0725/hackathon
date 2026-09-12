@@ -45,6 +45,8 @@ class Case(StrictModel):
     valuation_date: str = Field(default='',max_length=40)
     subject_name: str = Field(default='',max_length=200)
     comparable_name: str = Field(default='',max_length=200)
+    subject_address: str = Field(default='', max_length=300)
+    comparable_address: str = Field(default='', max_length=300)
     subject_section: str = ''
     comparable_section: str = ''
     locality: str = '新北市金山區'
