@@ -434,7 +434,15 @@ class PaddleLayoutRulesetExtractor:
         for row in visual_rows:
             numbers: list[Decimal] = []
             source: list[_Line] = []
+            center_y = sum(line.center_y for line in row) / len(row)
+            note_start = min(
+                (line.x1 for line in lines if _GRADE_PREFIX.match(_compact(line.text))
+                 and abs(line.center_y - center_y) <= max(height * 0.008, line.height * 0.7)),
+                default=matrix_limit,
+            )
             for line in sorted(row, key=lambda item: item.x1):
+                if line.center_x >= note_start:
+                    continue
                 values = _matrix_numbers(line.text)
                 if values:
                     numbers.extend(values)
@@ -487,8 +495,9 @@ class PaddleLayoutRulesetExtractor:
         fragments = [
             line
             for line in lines
-            if abs(line.x1 - factor_column_x) <= width * 0.02
+            if abs(line.x1 - factor_column_x) <= width * 0.035
             and top <= line.center_y < bottom
+            and _TITLE_MARKER not in line.text
             and not _structural_factor_fragment(_compact(line.text))
         ]
         columns: list[list[_Line]] = []
@@ -533,20 +542,31 @@ class PaddleLayoutRulesetExtractor:
             and not _PAGE_NUMBER.fullmatch(_compact(line.text))
         ]
         rows = _group_visual_rows(note_lines, max(bottom - top, 1))
-        criteria: list[list[str]] = []
+        anchors = sorted(
+            (line for line in note_lines
+             if line.x1 <= note_start + width * 0.04
+             and _GRADE_PREFIX.match(_compact(line.text))),
+            key=lambda line: line.center_y,
+        )
+        criteria = [[_GRADE_PREFIX.match(_compact(line.text)).group(1), ''] for line in anchors]
         for row in rows:
             text = ''.join(
                 _compact(line.text) for line in sorted(row, key=lambda item: item.x1)
             )
+            if not anchors or (text.startswith('以') and any(
+                marker in text for marker in ('衡量', '制定', '判定', '計算')
+            )):
+                continue
+            center_y = sum(line.center_y for line in row) / len(row)
+            if len(anchors) > 1 and not (
+                anchors[0].center_y - (anchors[1].center_y - anchors[0].center_y) / 2
+                <= center_y <=
+                anchors[-1].center_y + (anchors[-1].center_y - anchors[-2].center_y) / 2
+            ):
+                continue
+            nearest = min(range(len(anchors)), key=lambda i: abs(anchors[i].center_y - center_y))
             match = _GRADE_PREFIX.match(text)
-            if match:
-                criteria.append([match.group(1), match.group(2)])
-            elif criteria:
-                if text.startswith('以') and any(
-                    marker in text for marker in ('衡量', '制定', '判定', '計算')
-                ):
-                    break
-                criteria[-1][1] += text
+            criteria[nearest][1] += match.group(2) if match else text
         return tuple((label, _clean_criterion_body(text)) for label, text in criteria)
 
     def _row_labels(
@@ -941,7 +961,7 @@ def _clean_criterion_body(value: str) -> str:
 
 
 def _structural_factor_fragment(text: str) -> bool:
-    if text in {'細', '項', '細項', '價', '價格', '主要', '主要項目'}:
+    if text in {'細', '項', '細項', '價', '價格', '主要', '主要項目', '基準', '目標', '區段', '宗'}:
         return True
     return any(marker in text for marker in ('比較標的', '比準地', '比凖地', '準地', '凖地', '宗地'))
 

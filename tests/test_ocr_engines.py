@@ -54,9 +54,10 @@ def test_cache_isolates_engine_models_and_dpi_and_reuses_rollback(tmp_path, monk
         reader = LocalPdfReader(Settings(data_dir=tmp_path, ocr_engine=engine), repository)
         assert reader.read(b"%PDF-same-file") == [page(engine)]
     assert len(calls) == 2
-    for override in [{"recognition_model": "PP-OCRv5_mobile_rec"}, {"ocr_dpi": 200}]:
+    for override in [{"recognition_model": "PP-OCRv5_mobile_rec"}, {"ocr_dpi": 200},
+                     {"pdf_text_layer_enabled": False}]:
         LocalPdfReader(Settings(data_dir=tmp_path, ocr_engine="rapidocr", **override), repository).read(b"%PDF-same-file")
-    assert len(calls) == 4
+    assert len(calls) == 5
 
 
 @pytest.mark.parametrize("engine", ["paddleocr", "rapidocr"])
