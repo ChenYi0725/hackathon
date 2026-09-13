@@ -4,6 +4,9 @@
 匯入與 RAG 來源上傳共用同一個 `PdfReader`。這是 PR #20 的功能切片；AWS CPU
 效能比較及線上替換尚未在本次續作驗收，不據此宣稱 RapidOCR 較快或更準。
 
+後續 DDD-08 切片新增 [文字層加速](pdf-text-fast-path.md)：數位頁優先以 PDFium
+讀取文字與座標，掃描頁保留本文件所述 OCR 設定。下方為原引擎切換切片的驗收紀錄。
+
 ## 設定與回復
 
 依 [README](../README.md#切換本機-ocr-引擎) 安裝對應 requirements，再在 `.env`

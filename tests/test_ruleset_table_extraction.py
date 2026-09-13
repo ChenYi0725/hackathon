@@ -308,3 +308,38 @@ def test_matrix_with_missing_ocr_cell_is_not_repaired():
     first_matrix_row['text'] = '0 5'
     with pytest.raises(RulesetTableExtractionError, match='等級標籤|完整的修正率矩陣'):
         extract(page)
+
+
+def test_note_superscript_number_is_not_a_matrix_cell():
+    page = regional_page()
+    for line in page['lines']:
+        if line['text'].startswith(('優：', '普通：', '劣：')):
+            line['bbox'][0] = 620
+    # Separate text-layer superscripts can sit inside the broad matrix search area.
+    page['lines'].append(ocr_line('2', 660, 202, width=5, height=8))
+    result = extract(page)
+    assert len(result.rulesets[0].factors) == 3
+    assert result.rulesets[0].factors[0].rule.matrix[0] == (D('0'), D('5'), D('10'))
+
+
+def test_wrapped_criterion_above_centered_label_belongs_to_that_grade():
+    page = regional_page()
+    page['lines'] = [line for line in page['lines']
+                     if line['text'] not in {'優：第一類、第二類', '普通：第三類', '劣：第四類'}]
+    page['lines'].extend([
+        ocr_line('優：第一類', 700, 500),
+        ocr_line('普通：', 700, 535, width=45),
+        ocr_line('跨行條件上半', 780, 525, width=160, height=10),
+        ocr_line('跨行條件下半', 780, 540, width=160, height=10),
+        ocr_line('劣：第四類', 700, 570),
+    ])
+    result = extract(page)
+    criteria = dict(result.rulesets[0].factors[1].criteria)
+    assert criteria['優'] == '第一類'
+    assert criteria['普通'] == '跨行條件上半跨行條件下半'
+
+
+def test_title_over_detail_column_is_not_part_of_factor_name():
+    page = regional_page()
+    page['lines'][0]['bbox'] = [210, 20, 850, 140]
+    assert extract(page).rulesets[0].factors[0].name == '數值因素'

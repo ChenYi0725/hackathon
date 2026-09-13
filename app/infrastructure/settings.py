@@ -21,6 +21,7 @@ class Settings:
     ocr_dpi: int = field(default_factory=lambda: int(os.getenv('OCR_DPI', '180')))
     ocr_threads: int = field(default_factory=lambda: int(os.getenv('OCR_CPU_THREADS', '2')))
     ocr_engine: str = field(default_factory=lambda: os.getenv('OCR_ENGINE', 'paddleocr'))
+    pdf_text_layer_enabled: bool = field(default_factory=lambda: os.getenv('PDF_TEXT_LAYER_ENABLED', 'true').lower() == 'true')
     detection_model: str = field(default_factory=lambda: os.getenv('OCR_DETECTION_MODEL', 'PP-OCRv5_mobile_det'))
     recognition_model: str = field(default_factory=lambda: os.getenv('OCR_RECOGNITION_MODEL', 'PP-OCRv5_server_rec'))
 

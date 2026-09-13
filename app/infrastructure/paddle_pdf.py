@@ -21,10 +21,11 @@ class LocalPdfReader:
             raise ValueError('PDF 上限 20 MB。')
         options = {
             'engine': self.settings.ocr_engine,
+            'text_layer': self.settings.pdf_text_layer_enabled,
             'dpi': self.settings.ocr_dpi, 'cpu_threads': self.settings.ocr_threads,
             'detection_model': self.settings.detection_model, 'recognition_model': self.settings.recognition_model,
         }
-        key = 'ocr:' + hashlib.sha256(data + json.dumps(options, sort_keys=True).encode() + b'local-pdf-v2').hexdigest()
+        key = 'ocr:' + hashlib.sha256(data + json.dumps(options, sort_keys=True).encode() + b'local-pdf-v3').hexdigest()
         if self.repository:
             cached = self.repository.cache_get(key)
             if cached is not None:

@@ -1,6 +1,6 @@
 # 沒有錯的地方 Landwise · PaddleOCR + Amazon Bedrock
 
-本機估價審查工作台。上傳的 PDF 由 **可設定的 PaddleOCR／RapidOCR 在 CPU 辨識**；需要 AI 整理欄位時，使用 **Amazon Bedrock**。計算、級距與矩陣仍由確定性規則引擎執行，AI 回傳草稿須人工確認。
+估價審查工作台，可部署於 AWS EC2。上傳 PDF 優先讀取**可用的文字層與座標**；掃描頁交給 **PaddleOCR／RapidOCR 在 CPU 辨識**。需要 AI 整理欄位時使用 **Amazon Bedrock**。計算、級距與矩陣仍由確定性規則引擎執行，草稿須人工確認。
 
 「匯出成果」提供適用任意 ruleset 的完整審查 Excel、HTML 列表報告、CSV、JSON，以及表3／表4／表5各自的固定模板 Excel。PDF 輸出已移除。表格範例位於 [out_put_teamplate/](out_put_teamplate/README.md)，設定見 [分表輸出](docs/form-exports.md)。
 
@@ -22,7 +22,7 @@ flowchart TB
         DOMAIN["領域層 domain<br/>Case、Factor、Evidence<br/>級距、矩陣與審查計算"]
 
         subgraph INFRA["基礎設施層 infrastructure"]
-            OCR["PDF adapter<br/>PDFium 轉圖 → 所選 OCR 引擎<br/>CPU 子程序辨識"]
+            OCR["PDF adapter<br/>PDFium 文字與座標優先<br/>掃描頁 → CPU OCR"]
             AI["AI adapter<br/>Bedrock Converse<br/>快取、節流與有限重試"]
             RAG["RAG adapters<br/>文字檢索、引用說明與原生 tool calling"]
             REPO["Repository adapter<br/>SQLite 與本機檔案存取"]
@@ -51,7 +51,7 @@ flowchart TB
     MODEL -->|欄位草稿與來源行號| AI
 ```
 
-上傳先走所選 OCR 引擎，再保存原始 PDF、辨識文字與待確認案件。AI 抽取由使用者另外啟動，預覽不修改案件；套用後仍須人工核對，估價判定由領域規則引擎執行。目前保留單一比較標的；AWS 使用相同程式與 ports，單機部署方式見 [部署文件](docs/aws-deployment.md)。
+上傳先逐頁讀取可用文字層與座標，其他頁面走所選 OCR 引擎，再保存原始 PDF、文字與待確認案件。AI 抽取由使用者另外啟動，預覽不修改案件；套用後仍須人工核對，估價判定由領域規則引擎執行。目前保留單一比較標的；AWS 使用相同程式與 ports，單機部署方式見 [部署文件](docs/aws-deployment.md)。
 
 ## 基準文件 RAG
 
@@ -70,7 +70,7 @@ flowchart TB
 ```mermaid
 flowchart TB
     UPLOAD["瀏覽器上傳 PDF"] --> HTTP["interfaces：FastAPI 接收文件<br/>檔案上限 20 MB"]
-    HTTP --> OCR["infrastructure：PDFium 轉圖、所選 OCR 引擎 CPU 辨識<br/>最多 200 頁，限制像素與執行時間"]
+    HTTP --> OCR["infrastructure：文字層與座標優先，掃描頁 CPU OCR<br/>最多 200 頁，限制像素與執行時間"]
     OCR -->|成功| DRAFT["application：版型解析與待確認草稿<br/>本機保存原始 PDF、OCR 文字、座標及案件"]
     OCR -->|失敗或逾時| ERROR["顯示錯誤<br/>檢查或拆分文件後重新上傳"]
     DRAFT --> OPTIONAL{"需要 AWS AI 整理欄位？"}
@@ -209,14 +209,14 @@ BEDROCK_ENABLED=true
 ## 使用流程
 
 1. 上傳特定地區的評價基準明細表，填寫地區與適用期間。
-2. 所選 OCR 引擎轉成 structured ruleset 草稿；人工核對矩陣方向後建立不可覆寫版本，原始 PDF 同時加入該版本的本機檢索來源。
+2. 文字層／OCR 轉成 structured ruleset 草稿；人工核對矩陣方向後建立不可覆寫版本，原始 PDF 同時加入該版本的本機檢索來源。
 3. 選擇已確認的 ruleset，再上傳 20 MB 以內、最多 200 頁的題目 PDF。
-4. 所選 OCR 引擎擷取題目文字；程式只整理明確出現的行政區、詳細地址與可唯一對應的動態因素列，其他內容保持待確認。
+4. 文字層／OCR 擷取題目文字；程式只整理明確出現的行政區、詳細地址與可唯一對應的動態因素列，其他內容保持待確認。
 5. 如需 AI，按「AWS AI 抽取」，確認此文件符合競賽上雲規範後，將辨識文字送至 Bedrock。
 6. 規則引擎核對等級、修正率、加總與跨表數值；每次修改保存版本及快照。
 7. 匯出完整審查 Excel、CSV、JSON、可列印 HTML 報告或既有固定模板分表。
 
-內建案例是 `app/domain/sample.py` 的人工整理資料，並非現場 AI 推論結果。提供範例的文字層只用於內建原文與既有解析器回歸測試；**使用者的 PDF 上傳入口固定走設定的 OCR 引擎，不會靜默改用文字層抽取。**
+內建案例是 `app/domain/sample.py` 的人工整理資料，並非現場 AI 推論結果。**上傳預設啟用文字層加速**：符合條件的數位頁保留 `pdf-text` 來源標記與座標；含圖片、不可用文字或不支援的頁面變換時逐頁改走設定的 OCR 引擎。可用 `PDF_TEXT_LAYER_ENABLED=false` 關閉。詳見 [文字層加速與限制](docs/pdf-text-fast-path.md)。
 
 ## DDD 結構
 
@@ -250,6 +250,7 @@ tests/             領域、應用流程、介接契約及選用真實 OCR 測�
 | `BEDROCK_ENABLED` | `true` | `false` 關閉雲端 AI，仍可使用 OCR 與規則 |
 | `BEDROCK_MIN_INTERVAL` | `1.1` 秒 | 所有模型嘗試間隔，包含重試 |
 | `OCR_ENGINE` | `paddleocr` | 可設為 `rapidocr`；安裝對應依賴後重啟服務 |
+| `PDF_TEXT_LAYER_ENABLED` | `true` | 優先抽取可用文字層及像素座標；`false` 強制全部頁面使用 OCR |
 | `OCR_DPI` | `180` | PDF 轉圖片解析度（72–300） |
 | `OCR_CPU_THREADS` | `2` | CPU 執行緒數（1–8） |
 | `OCR_TIMEOUT_SECONDS` | `900` | 每份 PDF 的辨識逾時（秒）；CPU 多頁密集表格可能超過 5 分鐘，可設定 10–1800 秒 |
