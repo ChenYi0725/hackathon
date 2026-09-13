@@ -1,0 +1,69 @@
+{
+  "diagram_type": "architecture",
+  "output": "landwise-architecture.html",
+  "specification": {
+    "path": "landwise.architecture.json",
+    "sha256": "8a146635f8b1a20285d9e3321b2689589b1db128b679a3f89c413e0e9bd7753a",
+    "bytes": 8081
+  },
+  "artifact": {
+    "path": "landwise-architecture.html",
+    "sha256": "f07356006e95014631b4192937387502b7c9311ffdca8e5dbb5a339dd4964573",
+    "bytes": 819788
+  },
+  "validation": {
+    "quality": "showcase",
+    "checks_passed": 9,
+    "checks_total": 9,
+    "errors": 0,
+    "warnings": 0
+  },
+  "repository": {
+    "url": "https://github.com/ChenYi0725/hackathon",
+    "revision": "6e85f5827d09988f65409b72912eabd77ecb8161",
+    "verified_references": 17
+  },
+  "browser_evidence": "passed",
+  "browser_measurements": [
+    {
+      "width": 1440,
+      "height": 900,
+      "scrollWidth": 1440,
+      "scrollHeight": 900,
+      "overflowX": false,
+      "overflowY": false,
+      "readabilityOk": true
+    },
+    {
+      "width": 1600,
+      "height": 1000,
+      "scrollWidth": 1600,
+      "scrollHeight": 1000,
+      "overflowX": false,
+      "overflowY": false,
+      "readabilityOk": true
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "scrollWidth": 1920,
+      "scrollHeight": 1080,
+      "overflowX": false,
+      "overflowY": false,
+      "readabilityOk": true
+    },
+    {
+      "width": 2048,
+      "height": 1320,
+      "scrollWidth": 2048,
+      "scrollHeight": 1320,
+      "overflowX": false,
+      "overflowY": false,
+      "readabilityOk": true
+    }
+  ],
+  "visual_review": "passed",
+  "visual_review_scope": "Image-capable review of light and dark screenshots at 1440x900 and 2048x1320: labels, routing, boundaries, contrast, desktop balance and complete cards.",
+  "correction_rounds": 2,
+  "locale_note": "Authored content is Traditional Chinese; fixed Viewer UI and html lang fall back to English."
+}
