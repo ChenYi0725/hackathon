@@ -114,6 +114,42 @@ def test_truncated_output_never_becomes_a_draft(repository):
         extractor(repository, Client(stop='max_tokens')).extract(PAGES, default_rules())
 
 
+@pytest.mark.parametrize('fail_later', [False, True])
+def test_truncated_large_extraction_batches_atomically_and_keeps_sources(repository, fail_later):
+    client = Client()
+    original = client.converse
+    batches = []
+    def converse(**kwargs):
+        prompt = kwargs['messages'][0]['content'][0]['text']
+        rules_json, source = prompt.split('\n文件：\n', 1)
+        batches.append((json.loads(rules_json), source))
+        result = original(**kwargs)
+        if len(batches) == 1 or (fail_later and len(batches) == 3):
+            result['stopReason'] = 'max_tokens'
+        return result
+    client.converse = converse
+    ai = extractor(repository, client)
+    clock = [100.0]
+    ai.gate = RequestGate(repository, clock=lambda: clock[0], sleep=lambda seconds: clock.__setitem__(0, clock[0] + seconds))
+    if fail_later:
+        with pytest.raises(ExtractionUnavailable, match='未完整'):
+            ai.extract(PAGES, default_rules())
+        with repository.db() as connection:
+            assert connection.execute('SELECT count(*) FROM extraction_cache').fetchone()[0] == 0
+        return
+    result = ai.extract(PAGES, default_rules())
+    assert len(result) == 1 and result[0].id == 'width' and not result[0].confirmed
+    assert result[0].evidence.quote == '寬度 5 7'
+    assert all(call['inferenceConfig']['maxTokens'] == 8192 for call in client.calls)
+    assert all(source == batches[0][1] for _, source in batches)
+    assert all(len(rules) <= 12 for rules, _ in batches[1:])
+    assert [r['id'] for rules, _ in batches[1:] for r in rules] == [r['id'] for r in default_rules()['rules']]
+    assert ai.last_usage['outputTokens'] == 20 * len(client.calls)
+    count = len(client.calls)
+    assert ai.extract(PAGES, default_rules()) == result
+    assert len(client.calls) == count
+
+
 def test_disabled_model_and_empty_document_make_no_cloud_calls(repository):
     client = Client()
     with pytest.raises(ExtractionUnavailable):
