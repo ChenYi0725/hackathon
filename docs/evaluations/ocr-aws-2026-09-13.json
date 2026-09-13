@@ -1,0 +1,138 @@
+{
+  "date": "2026-09-13",
+  "region": "us-west-2",
+  "instance_type": "t3.large",
+  "platform": "Ubuntu 24.04 x86_64",
+  "cpu_threads": 2,
+  "dpi": 180,
+  "test_commit": "6e85f5827d09988f65409b72912eabd77ecb8161",
+  "production_commit": "7b1ac57c98ffa8d98651be491d2a379e4ef93ccd",
+  "production_switched": false,
+  "replacement_gate_passed": false,
+  "warm_comparison": {
+    "paddle_server": {
+      "mean_warm_seconds": 16.694,
+      "exact_cells": 212,
+      "total_cells": 216,
+      "exact_numeric": 108,
+      "total_numeric": 108,
+      "versions": {
+        "paddleocr": "3.7.0",
+        "paddlepaddle": "3.3.1",
+        "rapidocr": "3.9.2",
+        "onnxruntime": "1.24.4",
+        "numpy": "2.3.5",
+        "pypdfium2": "5.13.0"
+      }
+    },
+    "rapid_mobile": {
+      "mean_warm_seconds": 3.725,
+      "exact_cells": 216,
+      "total_cells": 216,
+      "exact_numeric": 108,
+      "total_numeric": 108,
+      "versions": {
+        "paddleocr": "3.7.0",
+        "paddlepaddle": "3.3.1",
+        "rapidocr": "3.9.2",
+        "onnxruntime": "1.24.4",
+        "numpy": "2.3.5",
+        "pypdfium2": "5.13.0"
+      }
+    }
+  },
+  "cold_process_runs": [
+    {
+      "candidate": "paddle_server",
+      "repeat": 0,
+      "seconds": 21.844257169002958
+    },
+    {
+      "candidate": "rapid_mobile",
+      "repeat": 0,
+      "seconds": 5.7868128000045544
+    },
+    {
+      "candidate": "rapid_mobile",
+      "repeat": 1,
+      "seconds": 5.985574254998937
+    },
+    {
+      "candidate": "paddle_server",
+      "repeat": 1,
+      "seconds": 23.199723205005284
+    },
+    {
+      "candidate": "paddle_server",
+      "repeat": 2,
+      "seconds": 22.795297714001208
+    },
+    {
+      "candidate": "rapid_mobile",
+      "repeat": 2,
+      "seconds": 5.886463230002846
+    }
+  ],
+  "cold_median_seconds": {
+    "paddle_server": 22.795,
+    "rapid_mobile": 5.886
+  },
+  "quality": {
+    "baseline": "4 passed; real scan and ruleset matrix/thresholds",
+    "rapid_mobile_180dpi": "3 passed, 1 failed; title loses 用 in 住宅用地",
+    "rapid_mobile_220dpi": "3 passed, 1 failed; same title omission",
+    "paddle_mobile_180dpi": "3 passed, 1 failed; same title omission",
+    "rapid_server": "Stopped after first clean/dense inferences took 79.507/79.088 seconds; full benchmark not completed",
+    "paddle_mkldnn": "NotImplementedError: ConvertPirAttribute2RuntimeAttribute / pir::ArrayAttribute<pir::DoubleAttribute>"
+  },
+  "python_suite": {
+    "passed": 1194,
+    "skipped": 7
+  },
+  "local_chrome": {
+    "passed": 11,
+    "engine": "rapidocr",
+    "recognition_model": "PP-OCRv5_mobile_rec",
+    "note": "Some UI tests mock responses; this does not validate real ruleset extraction"
+  },
+  "real_aws_http_smoke": {
+    "ocr": {
+      "provider": "rapidocr",
+      "pages": 1,
+      "line_count": 11,
+      "elapsed_seconds": 3.26
+    },
+    "data": "synthetic fixture only; no source cases sent to AWS",
+    "bedrock": {
+      "model": "qwen.qwen3-32b-v1:0",
+      "region": "us-west-2",
+      "factor_ids": [
+        "width",
+        "road_width"
+      ],
+      "values": {
+        "width": [
+          "5",
+          "7"
+        ],
+        "road_width": [
+          "18",
+          "6"
+        ]
+      },
+      "elapsed_seconds": 2.32,
+      "usage": {
+        "inputTokens": 1777,
+        "outputTokens": 129,
+        "totalTokens": 1906
+      },
+      "case_unchanged": true
+    }
+  },
+  "limitations": [
+    "Small synthetic dataset; not real-world accuracy",
+    "No permanent web configuration changed",
+    "Warm latency excludes model loading/downloads",
+    "Cold times include Python startup and first inference, with models already downloaded"
+  ]
+}
