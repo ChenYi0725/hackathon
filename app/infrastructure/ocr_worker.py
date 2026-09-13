@@ -82,7 +82,7 @@ def main():
     except Exception as exc:
         result = {'error': 'invalid_pdf' if str(exc) == 'invalid_pdf' else 'ocr_failed'}
         exit_code = 1
-    Path(output).write_text(json.dumps(result, ensure_ascii=False))
+    Path(output).write_text(json.dumps(result, ensure_ascii=False), encoding='utf-8')
     return exit_code
 
 

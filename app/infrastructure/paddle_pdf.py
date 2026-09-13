@@ -40,10 +40,13 @@ class LocalPdfReader:
                     cwd=ROOT, env=env, capture_output=True, timeout=self.settings.ocr_timeout,
                 )
             except subprocess.TimeoutExpired:
-                raise ExtractionUnavailable('OCR 處理逾時，請拆分 PDF 或調整 OCR_TIMEOUT_SECONDS。') from None
+                raise ExtractionUnavailable(
+                    f'OCR 處理超過 {self.settings.ocr_timeout} 秒而逾時，尚未建立案件。'
+                    '多頁密集表格需要較長時間，請拆分 PDF，或提高 OCR_TIMEOUT_SECONDS 後重啟服務。'
+                ) from None
             if not output.exists():
                 raise ExtractionUnavailable('OCR 無法啟動。請安裝所選 OCR 引擎的依賴並確認模型可下載。')
-            result = json.loads(output.read_text())
+            result = json.loads(output.read_text(encoding='utf-8'))
             if completed.returncode or 'error' in result:
                 code = result.get('error', '')
                 if code == 'invalid_pdf':

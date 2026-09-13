@@ -128,6 +128,21 @@ flowchart TB
 
 本機節流只涵蓋共用相同資料目錄的應用程序，不會限制同帳號其他工具或其他主機的模型請求；團隊使用 AWS CLI 或新增服務時仍須共同遵守帳號的請求限制。
 
+## 快速開始（Windows，Python 3.12）
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-ocr.txt
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
+```
+
+開啟 http://127.0.0.1:8000 。Windows 啟動腳本在未指定 `OCR_RECOGNITION_MODEL` 時，
+使用 `PP-OCRv5_mobile_rec`，降低本機 CPU 辨識密集表格的等待時間；偵測仍使用
+`PP-OCRv5_mobile_det`。首次使用會下載模型，辨識結果仍須核對原文。
+可先設定 `$env:OCR_RECOGNITION_MODEL='PP-OCRv5_server_rec'` 再啟動，以使用大型辨識模型。
+每份 PDF 預設等待上限為 900 秒，模型及實際上限可在 `/api/health` 查閱。
+`start.ps1` 使用目前 PowerShell 的環境變數，不會自動載入 `.env`。
+
 ## 快速開始（macOS / Linux，Python 3.12）
 
 ```bash
@@ -237,7 +252,7 @@ tests/             領域、應用流程、介接契約及選用真實 OCR 測�
 | `OCR_ENGINE` | `paddleocr` | 可設為 `rapidocr`；安裝對應依賴後重啟服務 |
 | `OCR_DPI` | `180` | PDF 轉圖片解析度（72–300） |
 | `OCR_CPU_THREADS` | `2` | CPU 執行緒數（1–8） |
-| `OCR_TIMEOUT_SECONDS` | `300` | 每份 PDF 的辨識逾時，首次下載可暫提高 |
+| `OCR_TIMEOUT_SECONDS` | `900` | 每份 PDF 的辨識逾時（秒）；CPU 多頁密集表格可能超過 5 分鐘，可設定 10–1800 秒 |
 | `OCR_DETECTION_MODEL` | `PP-OCRv5_mobile_det` | 文字偵測模型 |
 | `OCR_RECOGNITION_MODEL` | `PP-OCRv5_server_rec` | 文字辨識模型 |
 | `SEED_EXAMPLES` | `true` | AWS 環境應設 `false`，只匯入符合規範的資料 |

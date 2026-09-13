@@ -104,6 +104,7 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
         config = app.state.settings
         return dict(status='ok', version='1.1.0', ocr_provider=config.ocr_engine,
                     ocr_detection_model=config.detection_model, ocr_recognition_model=config.recognition_model,
+                    ocr_timeout_seconds=config.ocr_timeout,
                     ai_provider='bedrock',
                     ai_configured=config.ai_enabled and bool(config.model_id), ai_model=config.model_id, ai_region=config.region)
 
