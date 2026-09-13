@@ -1,4 +1,4 @@
-# 地衡 Landwise · PaddleOCR + Amazon Bedrock
+# 沒有錯的地方 Landwise · PaddleOCR + Amazon Bedrock
 
 本機估價審查工作台。上傳的 PDF 由 **可設定的 PaddleOCR／RapidOCR 在 CPU 辨識**；需要 AI 整理欄位時，使用 **Amazon Bedrock**。計算、級距與矩陣仍由確定性規則引擎執行，AI 回傳草稿須人工確認。
 

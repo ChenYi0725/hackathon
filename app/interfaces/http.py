@@ -67,7 +67,7 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
             app.state.service.seed_examples(sample_document(app.state.settings))
         yield
 
-    app = FastAPI(title='地衡 · 估價審查工作台', version='1.1.0', lifespan=lifespan)
+    app = FastAPI(title='沒有錯的地方 · 估價審查工作台', version='1.1.0', lifespan=lifespan)
 
     def service():
         return app.state.service
