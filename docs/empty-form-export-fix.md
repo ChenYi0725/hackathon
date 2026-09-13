@@ -11,3 +11,7 @@ HTML 整理書表顯示原值及等級，並列原填數字和程式重算供核
 舊案件不會自動重新 OCR；需重新匯入題目或補正欄位才能得到新解析結果。多比較標的完整自動填表仍未實作，本修正不宣稱支援三標的題目。AWS 發布沿用既有 Knowledge Base 與 PDF 文字層加速，不將其混入本 PR。
 
 驗證：Python 1,210 passed、7 skipped；Chrome Playwright 11 passed。使用合成資料將 report/forms 各列印成 2 頁 PDF，逐頁渲染確認等級、2.5% 原填率及 102.0 重算值可見，沒有整頁空白。未使用使用者的實際題目案件作驗收。
+
+AWS 驗證：部署程式 commit `a97f877`，加上既有 Knowledge Base / PDF 文字層加速後的 source tree 為 `62d73e560d13a7f4e8916d2cce71e2827955a660`。EC2 測試 1,239 passed、7 skipped；HTTPS health、report、forms 回傳 200，forms 已包含「程式重算（供核對）」。既有四個案件保留，切換前已備份資料，HTTPS 與 IP 白名單不變。部署記錄及回復所需的前版路徑存於主機受保護的 deployment manifest。
+
+PR：[空白欄位與書表修正 #32](https://github.com/ChenYi0725/hackathon/pull/32)，尚未合併 main。本機測試需使用此 PR 分支並重新啟動服務；僅拉 main 尚不會取得本修正。
