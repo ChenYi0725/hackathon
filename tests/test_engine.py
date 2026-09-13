@@ -96,3 +96,17 @@ def test_rule_validation_rejects_ambiguous_ranges_and_bad_matrix():
     with pytest.raises(ValueError,match='矩陣'):validate_ruleset(bad)
     bad=deepcopy(r);bad['rules'][0]['matrix'][0][1]=float('inf')
     with pytest.raises(ValueError):validate_ruleset(bad)
+
+
+@pytest.mark.parametrize('confirmed,price,expected', [(True, 100, 102), (False, 100, None), (True, None, None)])
+def test_empty_calculated_output_keeps_suggestion_only_with_confirmed_inputs(confirmed, price, expected):
+    case = sample_case()
+    case.totals.normal_price = price
+    case.totals.time_rate = 2
+    case.totals.adjusted_price = None
+    case.totals_confirmed = confirmed
+    check = next(row for row in review(case, default_rules())['checks'] if row['id'] == 'adjusted')
+    assert check['actual'] is None
+    assert check['expected'] == expected
+    assert check['status'] == ('error' if expected is not None else 'pending')
+    assert case.totals.adjusted_price is None
