@@ -337,3 +337,47 @@ test('Agent mode shows function trace and separate deterministic review', async 
   expect(calls).toBe(1);
   await page.screenshot({path:'test-results/agentic-rag.png',fullPage:true});
 });
+
+test('AWS retrieval consent, ingestion status and routed calculation candidates', async ({page})=>{
+  await page.route('**/api/rag/config',route=>route.fulfill({json:{cloud_retrieval:true}}));
+  await page.goto('/');
+  await page.getByRole('button',{name:'建立錯誤示範'}).click();
+  await page.getByRole('button',{name:'依據問答',exact:true}).click();
+  await page.locator('#rag-question').fill('查道路規範、查公園 API 並計算平均道路寬度');
+  let syncs=0,queries=0;
+  await page.route('**/api/rulesets/*/evidence-sync',async route=>{
+    syncs++;expect(route.request().postDataJSON()).toEqual({cloud_data_approved:true});
+    await route.fulfill({json:{status:'in_progress'}});
+  });
+  await page.getByText('管理這個基準版本的來源 PDF',{exact:true}).click();
+  await page.locator('#rag-sync').click();
+  await expect(page.locator('#rag-results')).toContainText('請先確認');
+  expect(syncs).toBe(0);
+  await page.locator('#rag-search').click();
+  await expect(page.locator('#rag-results')).toContainText('請先確認');
+  await page.locator('#rag-consent').check();
+  await page.locator('#rag-sync').click();
+  await expect(page.locator('#rag-results')).toContainText('同步處理中');
+  expect(syncs).toBe(1);
+  await page.getByText('補充量測資料供 Agent 選擇計算（選填）',{exact:true}).click();
+  await page.locator('[data-measure="opened_road_widths_m"][data-side="subject"]').fill('6,8,10');
+  await page.route('**/api/cases/*/agent-evidence',async route=>{
+    queries++;expect(route.request().postDataJSON().measurements.subject.opened_road_widths_m).toEqual(['6','8','10']);
+    await route.fulfill({json:{case_revision:1,status:'draft',message:'合成流程',hits:[],
+      statements:[{text:'候選公園需核對。',citation_ids:['api1']}],tool_trace:[{tool:'query_public_data',status:'success'},{tool:'calculate_measurement',status:'success'}],
+      api_sources:[{id:'api1',title:'公園資料',url:'https://data.ntpc.gov.tw/datasets/synthetic',locality:'新北市金山區',fetched_at:'2026-09-13'}],
+      public_data:[{record_count:1,candidates:[{name:'合成公園',address:'合成地址',citation_id:'api1'}],warning:'候選資料，待確認'}],
+      calculations:[{method:'average_road_width',side:'subject',result:'8',unit:'m',status:'preview',warning:'未套用案件'}],
+      field_gaps:[{name:'道路寬度',missing_fields:['subject']}]
+    }});
+  });
+  await page.locator('#rag-agent').click();
+  await expect(page.locator('#rag-results')).toContainText('比準地：8 m（待核對）');
+  await expect(page.locator('#rag-results')).toContainText('合成公園');
+  await expect(page.locator('#rag-results')).toContainText('道路寬度：比準地數值');
+  await expect(page.getByRole('link',{name:'政府資料原始來源'})).toHaveAttribute('href','https://data.ntpc.gov.tw/datasets/synthetic');
+  expect(queries).toBe(1);
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/aws-rag-routing.png',fullPage:true});
+});

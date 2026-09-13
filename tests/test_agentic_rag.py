@@ -37,7 +37,8 @@ class ChoosingAgent:
     def __init__(self):self.histories=[]
     def next_turn(self,context,history,tools):
         self.histories.append(history.copy())
-        assert {t['name'] for t in tools}=={'search_evidence','read_source_page','get_rule','review_case'}
+        assert {t['name'] for t in tools}=={'search_evidence','read_source_page','get_rule','review_case',
+            'inspect_case','list_data_sources','query_public_data','calculate_factor','calculate_measurement'}
         if len(history)==0:return AgentTurn(calls=(call('1','search_evidence',question='unknownxyz'),))
         if len(history)==1:return AgentTurn(calls=(call('2','search_evidence',question='寬度'),call('3','get_rule',rule_id='width')))
         if len(history)==2:
@@ -128,7 +129,7 @@ def test_native_converse_tool_protocol_cache_and_gate(setup):
     request=client.calls[-1]
     assert request['messages'][1]==first.continuation
     assert request['messages'][2]['content'][0]['toolResult']['toolUseId']=='native1'
-    assert 'toolConfig' in request and len(request['toolConfig']['tools'])==4
+    assert 'toolConfig' in request and len(request['toolConfig']['tools'])==9
 
 
 def test_truncated_native_response_is_rejected(setup):

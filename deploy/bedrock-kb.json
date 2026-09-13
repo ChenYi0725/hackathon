@@ -1,0 +1,319 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "DDD-07: Bedrock Knowledge Bases, private S3 sources and S3 Vectors",
+  "Parameters": {
+    "AppRoleName": {
+      "Type": "String",
+      "Description": "Existing EC2 instance role name"
+    }
+  },
+  "Resources": {
+    "Sources": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "IgnorePublicAcls": true,
+          "BlockPublicPolicy": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        }
+      }
+    },
+    "SourcePolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "Sources"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "Sources",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${Sources.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "Vectors": {
+      "Type": "AWS::S3Vectors::VectorBucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "VectorIndex": {
+      "Type": "AWS::S3Vectors::Index",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "VectorBucketArn": {
+          "Fn::GetAtt": [
+            "Vectors",
+            "VectorBucketArn"
+          ]
+        },
+        "IndexName": "evidence",
+        "DataType": "float32",
+        "Dimension": 1024,
+        "DistanceMetric": "cosine",
+        "MetadataConfiguration": {
+          "NonFilterableMetadataKeys": [
+            "AMAZON_BEDROCK_TEXT",
+            "AMAZON_BEDROCK_METADATA"
+          ]
+        }
+      }
+    },
+    "KnowledgeRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "bedrock.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                },
+                "ArnLike": {
+                  "aws:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/*"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ScopedAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "bedrock:InvokeModel"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:ListBucket"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Sources",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "${Sources.Arn}/landwise/chunks/*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3vectors:GetIndex",
+                    "s3vectors:QueryVectors",
+                    "s3vectors:PutVectors",
+                    "s3vectors:DeleteVectors",
+                    "s3vectors:GetVectors"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "VectorIndex",
+                      "IndexArn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "KnowledgeBase": {
+      "Type": "AWS::Bedrock::KnowledgeBase",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-evidence"
+        },
+        "RoleArn": {
+          "Fn::GetAtt": [
+            "KnowledgeRole",
+            "Arn"
+          ]
+        },
+        "KnowledgeBaseConfiguration": {
+          "Type": "VECTOR",
+          "VectorKnowledgeBaseConfiguration": {
+            "EmbeddingModelArn": {
+              "Fn::Sub": "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0"
+            },
+            "EmbeddingModelConfiguration": {
+              "BedrockEmbeddingModelConfiguration": {
+                "Dimensions": 1024
+              }
+            }
+          }
+        },
+        "StorageConfiguration": {
+          "Type": "S3_VECTORS",
+          "S3VectorsConfiguration": {
+            "IndexArn": {
+              "Fn::GetAtt": [
+                "VectorIndex",
+                "IndexArn"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "DataSource": {
+      "Type": "AWS::Bedrock::DataSource",
+      "Properties": {
+        "Name": "evidence-chunks",
+        "KnowledgeBaseId": {
+          "Ref": "KnowledgeBase"
+        },
+        "DataDeletionPolicy": "RETAIN",
+        "DataSourceConfiguration": {
+          "Type": "S3",
+          "S3Configuration": {
+            "BucketArn": {
+              "Fn::GetAtt": [
+                "Sources",
+                "Arn"
+              ]
+            },
+            "InclusionPrefixes": [
+              "landwise/chunks/"
+            ]
+          }
+        },
+        "VectorIngestionConfiguration": {
+          "ChunkingConfiguration": {
+            "ChunkingStrategy": "NONE"
+          }
+        }
+      }
+    },
+    "AppAccess": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": {
+          "Fn::Sub": "${AWS::StackName}-access"
+        },
+        "Roles": [
+          {
+            "Ref": "AppRoleName"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "bedrock:Retrieve",
+                "bedrock:StartIngestionJob",
+                "bedrock:GetIngestionJob"
+              ],
+              "Resource": {
+                "Fn::GetAtt": [
+                  "KnowledgeBase",
+                  "KnowledgeBaseArn"
+                ]
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:PutObject"
+              ],
+              "Resource": {
+                "Fn::Sub": "${Sources.Arn}/landwise/*"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "EvidenceBucket": {
+      "Value": {
+        "Ref": "Sources"
+      }
+    },
+    "KnowledgeBaseId": {
+      "Value": {
+        "Ref": "KnowledgeBase"
+      }
+    },
+    "DataSourceId": {
+      "Value": {
+        "Fn::GetAtt": [
+          "DataSource",
+          "DataSourceId"
+        ]
+      }
+    }
+  }
+}

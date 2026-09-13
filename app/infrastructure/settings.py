@@ -1,5 +1,6 @@
 """Deployment configuration. Credentials stay in the AWS SDK credential chain."""
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -16,6 +17,11 @@ class Settings:
     # Empty means the ordinary SDK chain (environment, default profile or instance role).
     aws_profile: str | None = field(default_factory=lambda: os.getenv('AWS_PROFILE') or None)
     ai_enabled: bool = field(default_factory=lambda: os.getenv('BEDROCK_ENABLED', 'true').lower() == 'true')
+    rag_backend: str = field(default_factory=lambda: os.getenv('RAG_BACKEND', 'local'))
+    knowledge_base_id: str = field(default_factory=lambda: os.getenv('BEDROCK_KNOWLEDGE_BASE_ID', ''))
+    knowledge_base_data_source_id: str = field(default_factory=lambda: os.getenv('BEDROCK_KB_DATA_SOURCE_ID', ''))
+    evidence_bucket: str = field(default_factory=lambda: os.getenv('EVIDENCE_S3_BUCKET', ''))
+    evidence_prefix: str = field(default_factory=lambda: os.getenv('EVIDENCE_S3_PREFIX', 'landwise/'))
     min_interval: float = field(default_factory=lambda: float(os.getenv('BEDROCK_MIN_INTERVAL', '1.1')))
     ocr_timeout: int = field(default_factory=lambda: int(os.getenv('OCR_TIMEOUT_SECONDS', '300')))
     ocr_dpi: int = field(default_factory=lambda: int(os.getenv('OCR_DPI', '180')))
@@ -25,6 +31,15 @@ class Settings:
     recognition_model: str = field(default_factory=lambda: os.getenv('OCR_RECOGNITION_MODEL', 'PP-OCRv5_server_rec'))
 
     def __post_init__(self):
+        if self.rag_backend not in {'local', 'bedrock-kb'}:
+            raise ValueError('RAG_BACKEND 設定無效。')
+        if self.rag_backend == 'bedrock-kb':
+            if not all(re.fullmatch(r'[A-Za-z0-9]{10}', v) for v in (self.knowledge_base_id, self.knowledge_base_data_source_id)):
+                raise ValueError('AWS 檢索需要有效的 Knowledge Base 與 Data Source ID。')
+            if not re.fullmatch(r'[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]', self.evidence_bucket):
+                raise ValueError('請設定 EVIDENCE_S3_BUCKET。')
+            if not re.fullmatch(r'[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_-]+)*/', self.evidence_prefix):
+                raise ValueError('EVIDENCE_S3_PREFIX 須為以 / 結尾的固定目錄。')
         if self.ocr_engine not in {'paddleocr', 'rapidocr'}:
             raise ValueError('OCR_ENGINE 須為 paddleocr 或 rapidocr。')
         if self.ocr_engine == 'rapidocr' and (

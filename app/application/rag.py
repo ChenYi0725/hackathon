@@ -1,17 +1,30 @@
 """Read-only retrieval and grounded explanation; never calculate or edit a case."""
 from datetime import date
 from app.application.ports import (ExtractionUnavailable, RevisionConflict, ReviewRepository,
-                                   PdfReader, EvidenceRetriever, EvidenceAnswerer)
+                                   PdfReader, EvidenceRetriever, EvidenceAnswerer, EvidencePublisher)
 from app.application.rag_contracts import EvidenceQuery
 from app.domain.applicability import require_ruleset_scope, valuation_day
 
 
 class RagService:
     def __init__(self, repository: ReviewRepository, pdf: PdfReader,
-                 retriever: EvidenceRetriever, answerer: EvidenceAnswerer, agent=None):
+                 retriever: EvidenceRetriever, answerer: EvidenceAnswerer, agent=None,
+                 publisher: EvidencePublisher | None = None, cloud_retrieval=False):
         self.repository, self.pdf = repository, pdf
         self.retriever, self.answerer = retriever, answerer
         self.agent = agent
+        self.publisher, self.cloud_retrieval = publisher, cloud_retrieval
+
+    def sync_sources(self, ruleset_id, cloud_data_approved=False):
+        if cloud_data_approved is not True:
+            raise ValueError('請先確認來源文件符合上雲規範。')
+        if self.publisher is None:
+            raise ValueError('尚未設定 AWS 知識庫。')
+        self.repository.get_rules(ruleset_id)
+        return self.publisher.sync_ruleset(ruleset_id)
+
+    def sync_status(self):
+        return self.publisher.status() if self.publisher else {'status': 'disabled'}
 
     def upload_source(self, ruleset_id, data, name, valid_from, valid_to):
         rules = self.repository.get_rules(ruleset_id)
@@ -35,7 +48,7 @@ class RagService:
         query = EvidenceQuery(question=question, ruleset_id=rules['id'], ruleset_version=rules['version'],
                               locality=case.locality, land_use=case.land_use,
                               valuation_date=valuation_day(case.valuation_date), rule_ids=tuple(rule_ids))
-        if generate and cloud_data_approved is not True:
+        if (generate or self.cloud_retrieval) and cloud_data_approved is not True:
             raise ValueError('請先確認問題與檢索文件符合競賽上雲規範；不得傳送個資或財務資訊。')
         hits = self.retriever.retrieve(query)
         statements = []

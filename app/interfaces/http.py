@@ -15,6 +15,7 @@ from app.infrastructure.persistence import now
 from app.infrastructure.settings import ROOT, Settings
 from app.interfaces.exports import export_case
 from app.application.export_contracts import ExportUnavailable
+from app.application.agent_contracts import CaseMeasurements
 
 
 mimetypes.add_type('text/javascript', '.js')
@@ -29,8 +30,14 @@ class AiRequest(RevisionRequest):
     cloud_data_approved: StrictBool = False
 
 
+class SourceSyncRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    cloud_data_approved: StrictBool = False
+
+
 class AgentRequest(AiRequest):
     question: str = Field(min_length=1, max_length=1000)
+    measurements: CaseMeasurements = Field(default_factory=CaseMeasurements)
 
 
 class RagRequest(AiRequest):
@@ -102,7 +109,7 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
     @app.get('/api/health')
     def health():
         config = app.state.settings
-        return dict(status='ok', version='1.1.0', ocr_provider=config.ocr_engine,
+        return dict(status='ok', version='1.1.0', ocr_provider=config.ocr_engine, rag_backend=config.rag_backend,
                     ocr_detection_model=config.detection_model, ocr_recognition_model=config.recognition_model,
                     ai_provider='bedrock',
                     ai_configured=config.ai_enabled and bool(config.model_id), ai_model=config.model_id, ai_region=config.region)
@@ -212,11 +219,24 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
 
     @app.post('/api/cases/{cid}/agent-evidence')
     def agent_evidence(cid: str, body: AgentRequest):
-        return service().rag.agent.query(cid, body.revision, body.question, body.cloud_data_approved)
+        return service().rag.agent.query(cid, body.revision, body.question, body.cloud_data_approved,
+                                         measurements=body.measurements)
 
     @app.get('/api/rulesets/{rid}/evidence-documents')
     def evidence_documents(rid: str):
         return service().repository.list_evidence_documents(rid)
+
+    @app.get('/api/rag/config')
+    def rag_config():
+        return dict(cloud_retrieval=service().rag.cloud_retrieval)
+
+    @app.post('/api/rulesets/{rid}/evidence-sync')
+    def sync_evidence(rid: str, body: SourceSyncRequest):
+        return service().rag.sync_sources(rid, body.cloud_data_approved)
+
+    @app.get('/api/rag/sync-status')
+    def sync_status():
+        return service().rag.sync_status()
 
     @app.post('/api/rulesets/{rid}/evidence-documents')
     async def upload_evidence(rid: str, request: Request, valid_from: str, valid_to: str, name: str = '基準.pdf'):

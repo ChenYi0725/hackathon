@@ -51,7 +51,7 @@
 | DDD-04 | P0 | ports 與案件用例整合 | Application | DDD-02、DDD-03 | 待認領 | — |
 | DDD-05 | P0 | PDF 報告與原書表產製 | Infrastructure | DDD-04 | 待審查（v1 Excel 分表；依本次需求移除 PDF 輸出） | Codex／[PR #9](https://github.com/ChenYi0725/hackathon/pull/9)；[範圍與驗收](form-exports.md) |
 | DDD-06 | P0 | 多標的核對與 PDF 下載介面 | Interfaces／UI | DDD-04、DDD-05 | 待審查（v1 Excel 下載；PDF 入口已移除） | Codex／[PR #9](https://github.com/ChenYi0725/hackathon/pull/9)；多標的輸入尚未整合 |
-| DDD-07 | P1 | 具版本篩選及引用的依據檢索 | Infrastructure | DDD-04（v2）；本次先接 v1 | 待審查 | Codex／[PR #6](https://github.com/ChenYi0725/hackathon/pull/6)（基礎 RAG：已合併 PR #5） |
+| DDD-07 | P1 | 具版本篩選及引用的依據檢索 | Infrastructure | DDD-04（v2）；本次先接 v1 | 進行中（AWS KB／Agent 工具切片） | Codex／[PR #6](https://github.com/ChenYi0725/hackathon/pull/6)（基礎 RAG）；[AWS KB 與工具路由驗收](aws-rag.md) |
 | DDD-08 | P0 | 題目完整流程與回歸驗收 | Integration | DDD-05、DDD-06 | 進行中（Agent／CPU OCR 切片） | Codex／[PR #8](https://github.com/ChenYi0725/hackathon/pull/8)、[PR #20](https://github.com/ChenYi0725/hackathon/pull/20)；[OCR 切換驗收](ocr-engines.md)；[PR #21](https://github.com/ChenYi0725/hackathon/pull/21)（Agent 錯誤修復與總計來源頁碼，已合併） |
 | DDD-09 | P2 | GraphRAG 對照評估 | Infrastructure＋Integration | DDD-07、DDD-08 | 待認領 | — |
 

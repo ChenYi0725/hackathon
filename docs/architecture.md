@@ -1,5 +1,7 @@
 # PaddleOCR / Bedrock 估價審查架構
 
+AWS RAG 切片：`RAG_BACKEND=bedrock-kb` 由 `bootstrap.py` 注入 `BedrockKnowledgeBaseRetriever`，一般問答與 Agent 共用它；`EvidencePublisher` 將來源同步 S3／KB。`PublicDataLookup` 封裝既有政府資料客戶端，application 依工具契約選擇查詢及 domain 計算。共用契約為加法擴充，無 Case／資料庫 schema 變更。完整流程與本機預設的差異見 [AWS RAG](aws-rag.md)。
+
 ## 領域邊界
 
 本版是一個估價審查 bounded context，以模組化單體部署。

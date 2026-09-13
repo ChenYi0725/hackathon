@@ -1,6 +1,6 @@
 # 基準文件 RAG（v1）
 
-已實作「檢索 → 提供原文 → Bedrock 生成附引用說明」。純本機檢索不需要 AWS，生成才需要已設定的 Bedrock。另提供 [Agent 自動查詢](agentic-rag.md)，由模型選擇檢索、讀頁、查看規則與確定性審查工具。
+已實作「檢索 → 提供原文 → Bedrock 生成附引用說明」。`RAG_BACKEND=local` 為下述本機開發流程；`bedrock-kb` 改用 AWS Knowledge Bases，純檢索也需上雲同意，來源需顯式同步，詳見 [AWS RAG 與新增 Agent 工具](aws-rag.md)。Agent 另接政府 API 候選查詢、缺漏檢查及既有計算函式；[原四工具說明](agentic-rag.md) 保留基礎設計背景。
 
 ## 使用
 
