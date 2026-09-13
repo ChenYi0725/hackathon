@@ -1,0 +1,61 @@
+{
+  "date": "2026-09-13",
+  "task": "DDD-08",
+  "deployed_commit": "d894e39",
+  "source": {
+    "sha256": "a7574aaf56b546737df8b3b34459e764523be77ae4af25490d617a41a33ed09c",
+    "bytes": 249392,
+    "pages": 9
+  },
+  "environment": {
+    "instance_type": "t3.large",
+    "engine": "paddleocr",
+    "paddleocr_version": "3.7.0",
+    "paddlepaddle_version": "3.3.1",
+    "pypdfium2_version": "5.13.0",
+    "cpu_threads": 2,
+    "dpi": 180,
+    "detection_model": "PP-OCRv5_mobile_det",
+    "recognition_model": "PP-OCRv5_server_rec",
+    "enable_mkldnn": false
+  },
+  "first_upload": {
+    "http_status": 200,
+    "connect_seconds": 0.151902,
+    "first_byte_seconds": 802.717843,
+    "total_seconds": 803.325029
+  },
+  "cached_upload": {
+    "http_status": 200,
+    "connect_seconds": 0.158140,
+    "first_byte_seconds": 1.986429,
+    "total_seconds": 2.465761,
+    "candidates_equal_first_upload": true
+  },
+  "cached_compiler_profile": {
+    "cache_lookup_seconds": 0.007185659000242595,
+    "compilation_seconds": 0.08715264800412115,
+    "boxes_per_page": [205, 306, 286, 304, 303, 253, 318, 253, 80],
+    "text_boxes": 2308
+  },
+  "separate_first_page_profile": {
+    "started_at": "2026-09-13T03:33:17Z",
+    "model_initialization_seconds": 2.9913823859969852,
+    "page_ocr_seconds": 70.45456722000381,
+    "ocr_total_seconds": 73.7980667419979,
+    "width": 1489,
+    "height": 2105,
+    "text_boxes": 205,
+    "max_rss_kib": 1642120,
+    "cprofile_scope": "calling thread only; wall time includes background inference work"
+  },
+  "result": {
+    "candidates": 2,
+    "factors": 48,
+    "warnings": 12,
+    "blocked_factors": 11,
+    "created_document_drafts": 2,
+    "confirmed_import": false,
+    "knowledge_base_sync": false
+  }
+}
