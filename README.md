@@ -65,6 +65,8 @@ flowchart TB
 
 以下為目前已實作的主要操作路徑。DDD 的 application 層編排流程，infrastructure 層處理 OCR、AWS 與儲存，domain 層負責確定性計算；HTTP 與畫面呈現結果。
 
+案件可用「自動查詢選填」重用文件、政府設施 API 與既有計算函式，補有來源的空欄並保留待確認狀態；操作、來源涵蓋與定位限制見 [自動選填說明](docs/autofill.md)。
+
 ### PDF 上傳到審查匯出
 
 ```mermaid

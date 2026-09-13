@@ -115,8 +115,11 @@ def review(case: Case, ruleset: dict):
         else:
             check('norm_'+field,label+'・基準重算','pending','上游資料或基準待確認，暫不判定總修正數。',total_field=field,page=total_page(field))
     def total_check(key,title,actual,expected,msg,field):
-        if not case.totals_confirmed or expected is None or actual is None:
+        if not case.totals_confirmed or expected is None:
             check(key,title,'pending','總計欄位未確認或計算資料不足。',actual,total_field=field,page=total_page(field));return
+        if actual is None:
+            check(key,title,'error','原填結果待補；可核對後採用程式重算值。'+msg,
+                  None,float(expected),total_field=field,page=total_page(field));return
         status='pass' if number(actual)==expected else 'error'
         if field in ['adjusted_price','trial_price'] and status=='error' and abs(number(actual)-expected)<=1:
             status='pending'

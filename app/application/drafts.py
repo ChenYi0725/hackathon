@@ -198,7 +198,7 @@ def _parse_dynamic_factors(case, pages, ruleset, by_id):
         if not compact_name:
             continue
         for page in pages:
-            for line in page['text'].splitlines():
+            for line, source_quote in _dynamic_rows(page['text'], rule):
                 compact_line = _compact(line)
                 if compact_name not in compact_line:
                     continue
@@ -247,7 +247,7 @@ def _parse_dynamic_factors(case, pages, ruleset, by_id):
 
                 if changed:
                     factor.evidence = Evidence(
-                        page=page['page'], quote=line.strip()[:3000], method='ruleset-row-parser'
+                        page=page['page'], quote=source_quote.strip()[:3000], method='ruleset-row-parser'
                     )
                     extracted += 1
                     break
@@ -256,6 +256,37 @@ def _parse_dynamic_factors(case, pages, ruleset, by_id):
     case.extraction_warnings.append(
         f'已依所選 structured ruleset 對應 {extracted} 個因素列；其餘欄位未猜測填值。'
     )
+
+
+def _dynamic_rows(text, rule):
+    """Join only isolated label + two values (+ rate), preserving source lines.
+
+    Do not stitch paragraphs, cross pages, or choose two of three comparables.
+    """
+    lines = text.splitlines()
+    name = _compact(rule['name'])
+    tokens = {_compact(band['label']) for band in rule['bands']}
+    tokens.update(_compact(value) for band in rule['bands'] for value in band.get('values', []))
+    unit = re.escape(_compact(rule.get('unit', '')))
+    numeric = re.compile(rf'{NUM}(?:[%％]|{unit})?', re.I)
+    for index, line in enumerate(lines):
+        yield line, line
+        if not re.fullmatch(r'\d*' + re.escape(name), _compact(line)):
+            continue
+        following = []
+        for next_line in lines[index + 1:index + 5]:
+            value = _compact(next_line)
+            if not value or not (value in tokens or numeric.fullmatch(value)):
+                break
+            following.append(next_line)
+        # A third value must be an explicit percentage, otherwise its role is
+        # ambiguous (rate vs. another comparable). Four values are unsupported.
+        if len(following) not in (2, 3):
+            continue
+        if len(following) == 3 and not re.fullmatch(rf'{NUM}[%％]', _compact(following[2])):
+            continue
+        source = '\n'.join([line, *following])
+        yield ' '.join([line, *following]), source
 
 
 def _ordered_tokens(text, values):

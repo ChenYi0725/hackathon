@@ -36,4 +36,10 @@ def invalidate_confirmations(previous: Case | None, proposed: Case) -> Case:
     if (context_changed or factors_changed or previous.totals != saved.totals
             or previous.total_evidence != saved.total_evidence):
         saved.totals_confirmed = False
+    calculations_changed = factors_changed or (previous is not None and previous.totals != saved.totals)
+    factors = {factor.id: factor for factor in saved.factors}
+    saved.field_sources = [] if context_changed else [source for source in saved.field_sources
+        if (target := factors.get(source.factor_id) if source.factor_id else (saved.totals if hasattr(saved.totals, source.field) else saved)) is not None
+        and hasattr(target, source.field) and str(getattr(target, source.field)) == source.value
+        and not (source.kind == 'calculation' and calculations_changed)]
     return saved

@@ -74,3 +74,24 @@ def test_bad_origin_unknown_ids_and_html_escape(client):
     report=client.get(f'/api/cases/{c["id"]}/export/report').text
     assert '<script>alert(1)</script>' not in report
     assert '&lt;script&gt;' in report
+
+
+def test_empty_total_can_be_applied_saved_and_exported_with_revision_guard(client):
+    from app.domain.sample import sample_case
+    case = sample_case()
+    case.totals.normal_price = 100
+    case.totals.time_rate = 2
+    case.totals.adjusted_price = None
+    case.totals_confirmed = True
+    saved = client.app.state.service.repository.save_case(case, 'synthetic empty-output fixture', new=True)
+    url = f'/api/cases/{saved.id}'
+    before = client.get(url).json()
+    assert next(r for r in before['review']['checks'] if r['id'] == 'adjusted')['expected'] == 102
+    response = client.post(url + '/fix/adjusted', json={'revision': saved.revision})
+    assert response.status_code == 200
+    after = response.json()['case']
+    assert after['totals']['adjusted_price'] == 102
+    assert after['totals_confirmed'] is False
+    assert client.get(url).json()['case']['totals']['adjusted_price'] == 102
+    assert '102.0' in client.get(url + '/export/forms').text
+    assert client.post(url + '/fix/adjusted', json={'revision': saved.revision}).status_code == 409

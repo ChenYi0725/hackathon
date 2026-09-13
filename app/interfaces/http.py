@@ -15,6 +15,7 @@ from app.infrastructure.persistence import now
 from app.infrastructure.settings import ROOT, Settings
 from app.interfaces.exports import export_case
 from app.application.export_contracts import ExportUnavailable
+from app.application.autofill_contracts import AutofillRequest, AutofillApply
 
 
 mimetypes.add_type('text/javascript', '.js')
@@ -65,7 +66,10 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
         )
         if os.getenv('SEED_EXAMPLES', 'true').lower() == 'true':
             app.state.service.seed_examples(sample_document(app.state.settings))
-        yield
+        try:
+            yield
+        finally:
+            app.state.service.autofill_jobs.close()
 
     app = FastAPI(title='沒有錯的地方 · 估價審查工作台', version='1.1.0', lifespan=lifespan)
 
@@ -238,6 +242,18 @@ def create_app(settings=None, *, pdf=None, ai=None, retriever=None, answerer=Non
     @app.post('/api/rulesets')
     def create_ruleset(body: dict):
         return service().create_ruleset(body)
+
+    @app.post('/api/cases/{cid}/autofill/jobs', status_code=202)
+    def start_autofill(cid: str, body: AutofillRequest):
+        return service().autofill_jobs.start(cid, body)
+
+    @app.get('/api/cases/{cid}/autofill/jobs/{job_id}')
+    def get_autofill(cid: str, job_id: str):
+        return service().autofill_jobs.get(cid, job_id)
+
+    @app.post('/api/cases/{cid}/autofill/apply')
+    def apply_autofill(cid: str, body: AutofillApply):
+        return service().payload(service().autofill.apply(cid, body.revision, body.token))
 
     @app.get('/api/cases/{cid}/export/{kind}')
     def export(cid: str, kind: str, revision: int | None = None):

@@ -41,6 +41,15 @@ TotalField = Literal['regional_detail', 'regional_carried', 'individual', 'absol
                      'time_rate', 'normal_price', 'adjusted_price', 'trial_price', 'weight']
 
 
+class FieldSource(StrictModel):
+    factor_id: str | None = Field(default=None, max_length=200)
+    field: str = Field(max_length=80)
+    kind: Literal['document', 'calculation', 'government-api']
+    value: str = Field(max_length=3000)
+    reference: str = Field(max_length=3000)
+    detail: str = Field(default='', max_length=3000)
+
+
 class Case(StrictModel):
     id: str = ''
     revision: int = 0
@@ -63,6 +72,7 @@ class Case(StrictModel):
     totals: Totals = Field(default_factory=Totals)
     # Absent on legacy/manual cases; never infer a page from a form number.
     total_evidence: dict[TotalField, Evidence] = Field(default_factory=dict)
+    field_sources: list[FieldSource] = Field(default_factory=list, max_length=500)
     totals_confirmed: bool = False
     notes: str = Field(default='',max_length=12000)
     extraction_warnings: list[str] = Field(default_factory=list,max_length=100)

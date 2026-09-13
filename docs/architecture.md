@@ -95,3 +95,7 @@ application 保存時核對引用確實位於連結文件；沒有連結文件�
 舊案件與歷史 JSON 不回填或重寫，數值與確認狀態不變；未記錄來源的總計在 UI／HTML 顯示
 「未記錄來源頁碼」，CSV／Excel 頁碼留白。SQLite 仍儲存 JSON，沒有 schema 遷移。
 舊版程式不認得新增的 JSON 欄位；回退舊版前須備份並使用升版前資料，或另做保留數值與修訂的欄位相容轉換。
+
+## 依來源自動選填
+
+案件 UI → HTTP 背景工作 → `AutofillService` → 文件解析／`FieldDataSource` 政府查詢／domain 計算 → 伺服器草稿 → revision 檢查套用 → repository 與來源表。政府 adapter 重用既有查詢來源，計算使用既有確定性函式；沒有地址／地號定位時僅提供設施候選。契約、佇列限制及驗收見 [自動選填說明](autofill.md)。

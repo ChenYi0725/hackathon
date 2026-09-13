@@ -63,3 +63,42 @@ def test_grade_table_row_without_percent_sign_keeps_two_grades_and_rate():
     factor = parse_case(pages, '等級明細', ruleset).factors[0]
     assert (factor.subject_grade, factor.comparable_grade) == ('第一級', '第三級')
     assert factor.entered_rate == 2.5
+
+
+def test_split_numeric_row_retains_values_and_verbatim_source():
+    source = '測試數值\n85%\n65%\n1.25%'
+    case = parse_case([{'page': 1, 'text': source}], '跨行題目', imported_ruleset())
+    f = case.factors[0]
+    assert (f.subject, f.comparable, f.entered_rate) == ('85', '65', 1.25)
+    assert f.evidence.quote == source
+    assert not f.confirmed
+
+
+def test_split_grade_row_is_extracted_without_inventing_raw_values():
+    source = '測試數值\n第一級\n第三級\n2.5%'
+    f = parse_case([{'page': 1, 'text': source}], '跨行等級', imported_ruleset()).factors[0]
+    assert (f.subject_grade, f.comparable_grade, f.entered_rate) == ('第一級', '第三級', 2.5)
+    assert f.subject is None and f.comparable is None
+
+
+def test_split_row_does_not_cross_unrelated_text_or_choose_multiple_comparables():
+    for source in (
+        '測試數值\n地址說明\n85%\n65%\n1.25%',
+        '測試數值\n85%\n65%\n55%\n1.25%',
+        '測試數值\n85\n65\n55',
+    ):
+        f = parse_case([{'page': 1, 'text': source}], '不明欄位', imported_ruleset()).factors[0]
+        assert f.subject is None and f.comparable is None and f.entered_rate is None
+
+
+def test_split_row_never_joins_across_pages():
+    pages = [{'page': 1, 'text': '測試數值'}, {'page': 2, 'text': '85%\n65%\n1.25%'}]
+    f = parse_case(pages, '跨頁', imported_ruleset()).factors[0]
+    assert f.subject is None and f.entered_rate is None
+
+
+def test_multi_comparable_table_stays_unfilled_with_explicit_warning():
+    text = '表4 比較法調查估價表\n7 面積 100 200 2% 300 3%\n測試數值 85% 65% 1.25%'
+    case = parse_case([{'page': 1, 'text': text}], '多比較標的', imported_ruleset())
+    assert all(f.subject is None and f.entered_rate is None for f in case.factors)
+    assert any('多筆已填比較標的' in w for w in case.extraction_warnings)
