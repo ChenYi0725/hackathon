@@ -33,3 +33,9 @@
 實際政府 API smoke（2026-09-13）：新北市公園來源金山區查詢 0.58 秒，回傳 7 筆候選。這證明既有 API 可呼叫，不代表已完成宗地定位或歷史適用性核對。真實題目與 OCR 不在本次合成回歸中。
 
 本機結果：Python 1,224 passed／7 skipped；Chrome 完整流程 12 passed，最新單選書表變更另重跑自動選填流程 1 passed。合成整理書表列印成兩頁 PDF，逐頁轉圖核對選取符號與來源。
+
+## AWS 部署驗收（2026-09-13）
+
+[PR #33](https://github.com/ChenYi0725/hackathon/pull/33) 程式版本 `4880c39`，保留線上 PR #27 Knowledge Base 與 PR #31 PDF 文字層加速後部署，整合 tree `c1d40f3afb01f306740f899a79aace6b5b502bd9`。AWS 合併版測試 **1,253 passed／7 skipped**；切換前備份案件及 systemd 設定。HTTPS 與既有 IP 限制維持原設定。
+
+線上合成案件 `1ed8b68ae6504ad1937cb203233f991a`（AWS自動選填驗收-純合成-0913）：背景查詢建立耗時 0.17 秒，11.19 秒完成，18 個來源回報狀態、85 筆候選，產生 4 個有來源草稿。套用後 revision 2、平均道路寬度 8、四筆來源保存成功，HTML 匯出含選取與來源。查無區域符合的來源保留 `no_district_matches`，不填「無」。健康檢查仍為 `bedrock-kb`、`pdf_text_layer_enabled=true`。
