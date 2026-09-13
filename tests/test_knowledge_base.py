@@ -90,6 +90,20 @@ def test_sync_in_progress_and_corrupt_pdf_do_not_upload(repo):
     assert not any(op=='put_object' for _,op,_ in runtime.calls)
 
 
+def test_aws_edge_trimming_preserves_exact_original_span_but_not_internal_changes(repo):
+    config,runtime,_=prepared(repo)
+    document=repo.list_evidence_documents(query().ruleset_id)[0]
+    original='  原文：數值 1 2\n  下一列\n'
+    with repo.db() as db:
+        db.execute('UPDATE documents SET pages=? WHERE id=?',
+                   (json.dumps([dict(page=1,text=original,method='synthetic')]),document['document_id']))
+    runtime.results[0]['content']['text']=original.strip()
+    hit=BedrockKnowledgeBaseRetriever(config,repo,runtime).retrieve(query())[0]
+    assert hit.source.quote==original and hit.source.start==0 and hit.source.end==len(original)
+    runtime.results[0]['content']['text']=original.strip().replace('1 2','12')
+    assert BedrockKnowledgeBaseRetriever(config,repo,runtime).retrieve(query())==[]
+
+
 def test_http_consent_and_shared_agent_kb_wiring(tmp_path,monkeypatch):
     monkeypatch.setenv('SEED_EXAMPLES','false')
     runtime=Runtime()

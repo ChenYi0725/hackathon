@@ -59,8 +59,11 @@ class BedrockKnowledgeBaseRetriever:
                 page = next(p for p in doc['pages'] if p['page'] == page_number)
                 quote = result['content']['text']
                 expected = page['text'][start:start + 800]
-                if not expected.strip() or quote != expected:
+                # Bedrock's text parser trims passage edges. Accept only that
+                # observed transformation; preserve original text and offsets.
+                if not expected.strip() or quote not in (expected, expected.strip()):
                     continue
+                quote = expected
                 uri = f's3://{self.settings.evidence_bucket}/' + chunk_key(
                     self.settings.evidence_prefix, doc['document_id'], doc['sha256'], page_number, start)
                 if result['location'].get('type') != 'S3' or result['location']['s3Location']['uri'] != uri:
