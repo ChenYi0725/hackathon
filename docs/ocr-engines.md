@@ -2,7 +2,8 @@
 
 本次接上可設定的 PaddleOCR／RapidOCR，預設仍為 PaddleOCR。案件上傳、評價基準
 匯入與 RAG 來源上傳共用同一個 `PdfReader`。這是 PR #20 的功能切片；AWS CPU
-效能比較及線上替換尚未在本次續作驗收，不據此宣稱 RapidOCR 較快或更準。
+效能比較已於 2026-09-13 補測，但全 mobile 未通過基準匯入閘門，正式網站未切換。
+詳見 [AWS 實測與未採用原因](ocr-aws-evaluation.md)。
 
 ## 設定與回復
 
@@ -66,6 +67,7 @@ node --check static/rag.js
 ## 限制與後續
 
 [合成 CPU 比較集](../tests/fixtures/ocr_benchmark/README.md) 與 benchmark scripts 保留，
-但此文件未包含可稽核的 AWS 五候選時間／準確率報告。本次不切換部署預設。
+AWS 候選實測已記錄於 [比較報告](ocr-aws-evaluation.md)：全 mobile 較快但基準標題漏字；
+server ONNX 過慢；MKLDNN 發生執行錯誤。本次不切換部署預設。
 後續須在同一 AWS CPU、相同文件與設定比較數字及儲存格位置，再依事先固定的閘門
 決定是否替換。小型合成文件的成功不能推論所有真實掃描品質；人工確認始終必要。
