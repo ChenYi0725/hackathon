@@ -17,7 +17,7 @@ class Settings:
     aws_profile: str | None = field(default_factory=lambda: os.getenv('AWS_PROFILE') or None)
     ai_enabled: bool = field(default_factory=lambda: os.getenv('BEDROCK_ENABLED', 'true').lower() == 'true')
     min_interval: float = field(default_factory=lambda: float(os.getenv('BEDROCK_MIN_INTERVAL', '1.1')))
-    ocr_timeout: int = field(default_factory=lambda: int(os.getenv('OCR_TIMEOUT_SECONDS', '300')))
+    ocr_timeout: int = field(default_factory=lambda: int(os.getenv('OCR_TIMEOUT_SECONDS', '900')))
     ocr_dpi: int = field(default_factory=lambda: int(os.getenv('OCR_DPI', '180')))
     ocr_threads: int = field(default_factory=lambda: int(os.getenv('OCR_CPU_THREADS', '2')))
     ocr_engine: str = field(default_factory=lambda: os.getenv('OCR_ENGINE', 'paddleocr'))

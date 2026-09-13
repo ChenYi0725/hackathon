@@ -29,6 +29,7 @@ export function setupRag({state,api,modal,esc,save}) {
   }
   async function refresh(){
    const docs=await api('/api/rulesets/'+currentCase.ruleset_id+'/evidence-documents');
+   state.workflowDocs=docs;
    list.innerHTML=docs.length?docs.map(d=>`<p>${esc(d.name)} · ${esc(d.valid_from)}～${esc(d.valid_to)} <a target="_blank" rel="noopener" href="/api/documents/${encodeURIComponent(d.document_id)}/file">原始 PDF</a></p>`).join(''):'<p>尚未加入來源，請先上傳適用的基準文件。</p>';
   }
   root.querySelector('#rag-upload').onclick=()=>run(async()=>{

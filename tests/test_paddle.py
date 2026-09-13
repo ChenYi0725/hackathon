@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 import subprocess
+import sys
+from types import SimpleNamespace
 import pytest
 from app.application.ports import ExtractionUnavailable
 from app.infrastructure.ocr_worker import layout_text
@@ -28,8 +30,38 @@ def test_timeout_is_explicit_and_cloud_credentials_are_not_forwarded(tmp_path, m
         assert 'AWS_SECRET_ACCESS_KEY' not in kwargs['env']
         raise subprocess.TimeoutExpired(command, kwargs['timeout'])
     monkeypatch.setattr(subprocess, 'run', timeout)
-    with pytest.raises(ExtractionUnavailable, match='逾時'):
-        PaddlePdfReader(Settings(data_dir=tmp_path)).read(b'%PDF-test')
+    with pytest.raises(ExtractionUnavailable, match='超過 42 秒.*尚未建立案件'):
+        PaddlePdfReader(Settings(data_dir=tmp_path, ocr_timeout=42)).read(b'%PDF-test')
+
+
+def test_multi_page_timeout_default_and_environment_override(monkeypatch):
+    monkeypatch.delenv('OCR_TIMEOUT_SECONDS', raising=False)
+    assert Settings().ocr_timeout == 900
+    monkeypatch.setenv('OCR_TIMEOUT_SECONDS', '1200')
+    assert Settings().ocr_timeout == 1200
+
+
+def test_worker_json_round_trip_uses_utf8_on_non_utf8_windows(tmp_path, monkeypatch):
+    from app.infrastructure import ocr_worker
+
+    expected = [{'page': 1, 'text': '寬度 18 ㎡ → 6 𠮷', 'method': 'paddleocr', 'lines': []}]
+    original_open = Path.open
+
+    def legacy_open(self, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
+        if 'b' not in mode and encoding in (None, 'locale'):
+            encoding = 'cp1252'
+        return original_open(self, mode, buffering, encoding, errors, newline)
+
+    monkeypatch.setattr(Path, 'open', legacy_open)
+    monkeypatch.setattr(ocr_worker, 'recognize', lambda *args: expected)
+
+    def worker(command, **kwargs):
+        with monkeypatch.context() as context:
+            context.setattr(sys, 'argv', ['ocr_worker', *command[-3:]])
+            return SimpleNamespace(returncode=ocr_worker.main())
+
+    monkeypatch.setattr(subprocess, 'run', worker)
+    assert PaddlePdfReader(Settings(data_dir=tmp_path)).read(b'%PDF-test') == expected
 
 
 @pytest.mark.integration
