@@ -3,7 +3,10 @@ from app.application.services import ReviewService
 from app.application.rag import RagService
 from app.application.agentic_rag import AgenticRagService
 from app.infrastructure.bedrock_agent import BedrockAgentModel
+from app.infrastructure.public_data import GovernmentDataLookup
 from app.infrastructure.retrieval import LocalEvidenceRetriever
+from app.infrastructure.aws_rag_runtime import AwsRagRuntime
+from app.infrastructure.knowledge_base import BedrockKnowledgeBaseRetriever, S3KnowledgeBasePublisher
 from app.infrastructure.bedrock_rag import BedrockEvidenceAnswerer
 from app.infrastructure.bedrock import BedrockFieldExtractor
 from app.infrastructure.paddle_pdf import LocalPdfReader
@@ -21,9 +24,15 @@ def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None,
     repository.initialize()
     pdf_reader = pdf or LocalPdfReader(settings, repository)
     transport = BedrockFieldExtractor(settings, repository)
-    retrieval = retriever or LocalEvidenceRetriever(repository)
-    agent = AgenticRagService(repository, retrieval, agent_model or BedrockAgentModel(transport))
-    rag = RagService(repository, pdf_reader, retrieval, answerer or BedrockEvidenceAnswerer(transport), agent=agent)
+    runtime = AwsRagRuntime(transport)
+    cloud_retrieval = settings.rag_backend == 'bedrock-kb'
+    retrieval = retriever or (BedrockKnowledgeBaseRetriever(settings, repository, runtime)
+                             if cloud_retrieval else LocalEvidenceRetriever(repository))
+    publisher = S3KnowledgeBasePublisher(settings, repository, runtime) if cloud_retrieval else None
+    agent = AgenticRagService(repository, retrieval, agent_model or BedrockAgentModel(transport),
+                             public_data=GovernmentDataLookup())
+    rag = RagService(repository, pdf_reader, retrieval, answerer or BedrockEvidenceAnswerer(transport), agent=agent,
+                     publisher=publisher, cloud_retrieval=cloud_retrieval)
     ruleset_import = RulesetImportService(
         repository,
         pdf_reader,

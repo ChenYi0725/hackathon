@@ -1,0 +1,53 @@
+{
+  "date": "2026-09-13",
+  "code_commit": "d894e39",
+  "region": "us-west-2",
+  "stack": "landwise-rag",
+  "stack_status": "CREATE_COMPLETE",
+  "knowledge_base_id": "AJYWA6GAIT",
+  "data_source_id": "K8NHWZDZ4W",
+  "retrieval": "Bedrock Knowledge Bases, Titan Text Embeddings v2, S3 Vectors",
+  "agent": "Bedrock Converse decisions; EC2 application tool execution",
+  "local_python": {"passed": 1213, "skipped": 7},
+  "ec2_python": {"baseline_passed": 1212, "skipped": 7, "final_rag_regression_passed": 62},
+  "chrome_e2e": {"passed": 12, "cloud_responses": "mocked"},
+  "real_ec2_integration": {
+    "agent_smoke_commit": "52c78d4",
+    "credentials": "instance role",
+    "fixture": "generated synthetic PDF and temporary SQLite, no real appraisal data",
+    "ingestion_job": "BUEC9BCPJ2",
+    "ingestion_status": "COMPLETE",
+    "documents_failed": 0,
+    "exact_quote_and_page": true,
+    "wrong_version_excluded": true,
+    "expired_excluded": true,
+    "selected_tools": ["search_evidence", "calculate_measurement", "list_data_sources", "query_public_data", "review_case"],
+    "model_turns_including_repair": 7,
+    "calculation_function": "calculate_average_road_width",
+    "calculation_inputs_m": ["6", "8", "10"],
+    "calculation_output_m": "8",
+    "api_source_count": 1,
+    "review_returned": true,
+    "case_and_audit_unchanged": true
+  },
+  "deployment": {
+    "health": "ok",
+    "rag_backend": "bedrock-kb",
+    "ocr_detection": "PP-OCRv5_mobile_det",
+    "ocr_recognition": "PP-OCRv5_server_rec",
+    "business_table_hashes_unchanged": true,
+    "existing_synthetic_sources_synced": 3,
+    "existing_cases_http_queries_passed": 4,
+    "minimum_citations_per_query": 1,
+    "ocr_edge_whitespace_restored": true,
+    "preserved_rows": {"cases": 4, "rulesets": 3, "documents": 5, "audit": 14, "evidence_documents": 3}
+  },
+  "limitations": [
+    "The initial five-turn real integration failed at its bound; the verified release allows eight turns and twelve tools.",
+    "Existing OCR passages initially failed exact matching because Bedrock trims edge whitespace; d894e39 accepts only edge trimming and restores original quote/offsets, with internal changes still rejected.",
+    "Formal regulation documents and their effective dates are not established by these synthetic fixtures.",
+    "Government records are candidates; historical applicability, parcel membership and measurement method require review.",
+    "Citation validation verifies provenance, not semantic entailment of generated text or selected formula.",
+    "Amazon Bedrock Agents was not deployed; its CreateAgent permission remains blocked by the account SCP."
+  ]
+}

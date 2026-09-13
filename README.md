@@ -1,6 +1,8 @@
 # 地衡 Landwise · PaddleOCR + Amazon Bedrock
 
-本機估價審查工作台。上傳的 PDF 由 **可設定的 PaddleOCR／RapidOCR 在 CPU 辨識**；需要 AI 整理欄位時，使用 **Amazon Bedrock**。計算、級距與矩陣仍由確定性規則引擎執行，AI 回傳草稿須人工確認。
+可部署於 AWS EC2 的估價審查工作台。上傳的 PDF 由 **可設定的 PaddleOCR／RapidOCR 在 CPU 辨識**；需要 AI 整理欄位時，使用 **Amazon Bedrock**。計算、級距與矩陣仍由確定性規則引擎執行，AI 回傳草稿須人工確認。
+
+RAG 可設定為 **Amazon Bedrock Knowledge Bases＋S3 Vectors**。Agent 已接規範檢索、政府 API 候選查詢、缺欄位檢查、既有計算函式與審查；部署、來源同步和限制見 [AWS RAG](docs/aws-rag.md)。下方原有架構圖的本機檢索表示開發預設；AWS 模式由相同 port 注入 KB adapter。
 
 「匯出成果」提供適用任意 ruleset 的完整審查 Excel、HTML 列表報告、CSV、JSON，以及表3／表4／表5各自的固定模板 Excel。PDF 輸出已移除。表格範例位於 [out_put_teamplate/](out_put_teamplate/README.md)，設定見 [分表輸出](docs/form-exports.md)。
 
