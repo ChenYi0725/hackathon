@@ -48,9 +48,13 @@ EC2 使用 instance role，勿設定開發用 `AWS_PROFILE`。OCR 模型、案�
 
 來源同步先核對 PDF SHA-256，使用 800 字元、680 字元步長預切片，metadata 包含文件／範圍／頁碼／字元位移；data source 使用 `NONE` chunking，只索引 `landwise/chunks/`。同步是顯式上傳加 AWS ingestion job，須待 `COMPLETE` 且失敗文件數為零。中断可重試相同物件；上傳狀態不當作索引完成。
 
-回傳片段再次比對保存的 scope、SHA、S3 URI、頁碼、位移與完整原文；不可驗證片段丟棄。SQLite 保存的原文讓引用連結仍能開到原始 PDF。更換來源 metadata 後須再次同步。
+回傳片段再次比對保存的 scope、SHA、S3 URI、頁碼、位移與完整原文；只容許 AWS 裁切片段首尾空白，再還原原始引文及位移，內文空格／數字變動仍拒絕。不可驗證片段丟棄。SQLite 保存的原文讓引用連結仍能開到原始 PDF。更換來源 metadata 後須再次同步。
 
 ## 驗證
+
+2026-09-13 已部署程式 `d894e39` 至 EC2，健康檢查為 `bedrock-kb`；部署前後案件、基準、文件及 audit 表雜湊一致。EC2 instance role 真實測試完成「AWS 索引／檢索 → 模型選計算 → 政府 API → 審查」，道路寬度 6、8、10 回 8 公尺與一個 API 來源；無案件寫入。本機最終 Python 1,213 passed／7 skipped，EC2 基線 1,212 passed／7 skipped，修正後 RAG 回歸 62 passed；Chrome 12 passed。
+
+既有 3 份合成來源已同步；正式 HTTP 對 4 個既有合成案件查詢皆回傳引用。此步實測發現 AWS 去除片段開頭縮排，已修正為只容許首尾裁切並恢復原始引文。詳細結果見 [機器可讀驗收](evaluations/aws-kb-2026-09-13.json)。**目前雲端內容為合成測試資料；正式規範與適用日期尚需匯入，不能宣稱已建立完整法規知識庫。**
 
 一般測試不使用外部服務：`python -m pytest -q`。瀏覽器驗證 `PLAYWRIGHT_CHANNEL=chrome npm run test:e2e`，AWS 與 API 回應以替身驗證呈現／同意／缺值流程。
 
