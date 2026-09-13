@@ -1,0 +1,32 @@
+const {test,expect}=require('@playwright/test');
+
+test('source-backed completion fills radios and measurements, persists provenance and exports',async({page,request})=>{
+ const response=await request.post('/api/cases',{data:{title:'合成自動選填驗收',subject_name:'合成比準地',comparable_name:'合成比較地',factors:[{id:'r_ban',subject:'無',comparable:'有'}]}});
+ expect(response.ok()).toBeTruthy();
+ const c=(await response.json()).case;
+ await page.goto('/');
+ await page.locator('.case-table tbody tr').filter({hasText:'合成自動選填驗收'}).getByRole('button').click();
+ await page.getByRole('button',{name:'自動查詢選填',exact:true}).click();
+ const dialog=page.getByRole('dialog');
+ await dialog.locator('#autofill-public').uncheck();
+ await dialog.getByText('補充已有來源的量測資料（選填）',{exact:true}).click();
+ await dialog.locator('#autofill-subject-roads').fill('6, 8, 10');
+ await dialog.locator('#autofill-subject-source').fill('合成勘查紀錄第1頁');
+ await dialog.getByRole('button',{name:'查詢並產生選填草稿'}).click();
+ await expect(dialog.locator('#autofill-output')).toContainText('可補', {timeout:15000});
+ await expect(dialog.locator('#autofill-output')).toContainText('calculate_average_road_width');
+ await page.screenshot({path:'test-results/autofill-preview.png',fullPage:true});
+ await dialog.getByRole('button',{name:'套用全部有來源的空欄'}).click();
+ await expect(dialog).not.toBeVisible();
+ await page.getByRole('button',{name:'資料核對',exact:true}).click();
+ await page.getByRole('button',{name:'區域因素',exact:true}).click();
+ await expect(page.locator('[data-factor="r_avg_width"][data-key="subject"]')).toHaveValue('8');
+ await expect(page.locator('[data-factor="r_ban"][data-key="subject"][value="無"]')).toBeChecked();
+ await expect(page.locator('[data-factor="r_ban"][data-key="comparable"][value="有"]')).toBeChecked();
+ await expect(page.locator('[data-factor="r_ban"][data-key="confirmed"]')).not.toBeChecked();
+ const saved=(await (await request.get(`/api/cases/${c.id}`)).json()).case;
+ expect(saved.field_sources.some(s=>s.reference==='calculate_average_road_width')).toBeTruthy();
+ const html=await (await request.get(`/api/cases/${c.id}/export/forms`)).text();
+ expect(html).toContain('自動選填來源');
+ expect(html).toContain('合成勘查紀錄第1頁');
+});

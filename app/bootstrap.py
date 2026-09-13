@@ -1,5 +1,8 @@
 """Composition root: wire concrete adapters into application-owned ports."""
 from app.application.services import ReviewService
+from app.application.autofill import AutofillService
+from app.infrastructure.autofill_data import GovernmentFieldData, RepositoryAutofillDrafts
+from app.infrastructure.autofill_jobs import AutofillJobs
 from app.application.rag import RagService
 from app.application.agentic_rag import AgenticRagService
 from app.infrastructure.bedrock_agent import BedrockAgentModel
@@ -29,9 +32,10 @@ def build_service(settings, pdf=None, ai=None, retriever=None, answerer=None,
         pdf_reader,
         ruleset_extractor or PaddleLayoutRulesetExtractor(),
     )
+    autofill = AutofillService(repository, GovernmentFieldData(), RepositoryAutofillDrafts(repository))
     return ReviewService(repository, pdf_reader, ai or transport, rag=rag,
                          renderer=TemplateFormRenderer(settings.form_template_dir),
-                         ruleset_import=ruleset_import)
+                         ruleset_import=ruleset_import, autofill=autofill, autofill_jobs=AutofillJobs(autofill))
 
 
 def build_ruleset_extraction_service(settings, pdf=None):

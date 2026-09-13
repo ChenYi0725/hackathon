@@ -33,8 +33,10 @@ def export_case(case, result, rules, kind: str, generated_at: str):
     else:
         content='<p>原填資料與程式重算分欄呈現；重算值供核對，不會自動覆寫案件。</p>'
         factor_checks={row.get('factor_id'):row for row in result['checks'] if row.get('factor_id')}
-        def condition(value, grade, unit):
+        def condition(value, grade, unit, options):
             raw=esc(value) + (' '+esc(unit) if value is not None and unit else '')
+            if not unit and 1 < len(options) <= 6 and value in options:
+                raw=' '.join(('☑' if value==option else '☐')+esc(option) for option in options)
             return raw + ('<br>等級：'+esc(grade) if grade is not None else '')
         for scope,title in [('regional','表 1 / 表 5-2 · 區域條件與修正率整理'),('individual','表 4 · 比較法調查估價整理')]:
             rows=''
@@ -43,7 +45,8 @@ def export_case(case, result, rules, kind: str, generated_at: str):
                 f=next((f for f in case.factors if f.id==r['id']),None)
                 if f:
                     expected=factor_checks.get(f.id, {}).get('expected')
-                    rows+=f'<tr><td>{esc(r["name"])}</td><td>{condition(f.subject,f.subject_grade,r["unit"])}</td><td>{condition(f.comparable,f.comparable_grade,r["unit"])}</td><td>{esc(f.entered_rate)}{"%" if f.entered_rate is not None else ""}</td><td>{esc(expected) if expected is not None else "待確認／資料不足"}{"%" if expected is not None else ""}</td><td>{"已核對" if f.confirmed else "待確認"}</td></tr>'
+                    options=list(dict.fromkeys(v for band in r['bands'] for v in (band.get('values') or [])))
+                    rows+=f'<tr><td>{esc(r["name"])}</td><td>{condition(f.subject,f.subject_grade,r["unit"],options)}</td><td>{condition(f.comparable,f.comparable_grade,r["unit"],options)}</td><td>{esc(f.entered_rate)}{"%" if f.entered_rate is not None else ""}</td><td>{esc(expected) if expected is not None else "待確認／資料不足"}{"%" if expected is not None else ""}</td><td>{"已核對" if f.confirmed else "待確認"}</td></tr>'
             content+=f'<h2>{title}</h2><table><tr><th>因素</th><th>比準地</th><th>比較標的</th><th>原填修正率</th><th>基準重算</th><th>資料狀態</th></tr>{rows}</table>'
         labels={'normal_price':'土地正常單價','time_rate':'日期調整率','adjusted_price':'估價基準日單價',
                 'regional_detail':'區域因素總修正數','regional_carried':'跨表區域調整率','individual':'個別因素合計',
@@ -54,6 +57,12 @@ def export_case(case, result, rules, kind: str, generated_at: str):
             calculated='<br>'.join(esc(row['title'])+'：'+esc(row['expected']) for row in calculations) or '待確認／資料不足或屬輸入值'
             content+=f'<tr><td>{esc(labels.get(key,key))}</td><td>{esc(value)}</td><td>{calculated}</td></tr>'
         content+='</table><p>此為整理書表，未覆寫原始 PDF 或套印官方格式。</p>'
+    if case.field_sources:
+        factor_names={rule['id']:rule['name'] for rule in rules['rules']}
+        content+='<h2>自動選填來源</h2><table><tr><th>項目／欄位</th><th>填入值</th><th>來源與方法</th></tr>'
+        for source in case.field_sources:
+            content+=f'<tr><td>{esc(factor_names.get(source.factor_id,"計算欄位"))} / {esc(source.field)}</td><td>{esc(source.value)}</td><td>{esc(source.reference)}<br>{esc(source.detail)}</td></tr>'
+        content+='</table>'
     warnings=''.join('<li>'+esc(warning)+'</li>' for warning in case.extraction_warnings)
     if warnings: content='<div class="notice"><strong>匯入限制與待確認事項</strong><ul>'+warnings+'</ul></div>'+content
     doc=f'''<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>{esc(case.title)}</title>

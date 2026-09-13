@@ -14,11 +14,12 @@ from app.application.export_contracts import ExportUnavailable, FormRenderer
 class ReviewService:
     def __init__(self, repository: ReviewRepository, pdf: PdfReader, ai: FieldExtractor,
                  rag: RagService | None = None, renderer: FormRenderer | None = None,
-                 ruleset_import=None):
+                 ruleset_import=None, autofill=None, autofill_jobs=None):
         self.repository, self.pdf, self.ai = repository, pdf, ai
         self.rag = rag
         self.renderer = renderer
         self.ruleset_import = ruleset_import
+        self.autofill, self.autofill_jobs = autofill, autofill_jobs
 
     def export_document(self, case_id, kind, revision, generated_at):
         case = self.repository.get_case(case_id)
@@ -73,7 +74,10 @@ class ReviewService:
         previous = None if new else self.repository.get_case(case.id)
         if previous is not None and previous.revision != case.revision:
             raise RevisionConflict('案件已更新，請重新載入。')
-        candidate = invalidate_confirmations(previous, case)
+        # Client JSON cannot introduce or retain provenance for edited values.
+        proposal = case.model_copy(deep=True)
+        proposal.field_sources = previous.field_sources if previous is not None else []
+        candidate = invalidate_confirmations(previous, proposal)
         self.validate_case(candidate)
         saved = self.repository.save_case(candidate, '建立或匯入案件' if new else '儲存欄位與重新審查', new=new)
         return self.payload(saved)
