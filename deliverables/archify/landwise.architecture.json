@@ -1,0 +1,388 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "地衡 Landwise｜系統架構與資料流程",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1360,
+      780
+    ],
+    "repository": {
+      "url": "https://github.com/ChenYi0725/hackathon",
+      "provider": "github",
+      "revision": "6e85f5827d09988f65409b72912eabd77ecb8161",
+      "link_mode": "web"
+    }
+  },
+  "components": [
+    {
+      "id": "review-browser",
+      "type": "frontend",
+      "label": "審查工作台",
+      "sublabel": "上傳、人工核對、下載",
+      "pos": [
+        40,
+        332
+      ],
+      "size": [
+        168,
+        84
+      ],
+      "sources": [
+        {
+          "path": "static/app.js"
+        }
+      ]
+    },
+    {
+      "id": "review-http",
+      "type": "backend",
+      "label": "FastAPI 介面",
+      "sublabel": "HTTP 請求與回應",
+      "pos": [
+        292,
+        332
+      ],
+      "size": [
+        168,
+        84
+      ],
+      "sources": [
+        {
+          "path": "app/interfaces/http.py"
+        }
+      ]
+    },
+    {
+      "id": "review-usecases",
+      "type": "backend",
+      "label": "案件用例編排",
+      "sublabel": "草稿、確認、revision",
+      "pos": [
+        568,
+        332
+      ],
+      "size": [
+        176,
+        84
+      ],
+      "sources": [
+        {
+          "path": "app/application/services.py"
+        },
+        {
+          "path": "app/bootstrap.py"
+        }
+      ]
+    },
+    {
+      "id": "valuation-domain",
+      "type": "backend",
+      "label": "確定性規則引擎",
+      "sublabel": "級距、矩陣、Decimal",
+      "pos": [
+        848,
+        332
+      ],
+      "size": [
+        176,
+        84
+      ],
+      "sources": [
+        {
+          "path": "app/domain/engine.py"
+        }
+      ]
+    },
+    {
+      "id": "review-export",
+      "type": "backend",
+      "label": "審查成果匯出",
+      "sublabel": "Excel／HTML／CSV／JSON",
+      "pos": [
+        1120,
+        332
+      ],
+      "size": [
+        176,
+        84
+      ],
+      "sources": [
+        {
+          "path": "app/infrastructure/form_exports.py"
+        },
+        {
+          "path": "app/interfaces/http.py"
+        }
+      ]
+    },
+    {
+      "id": "evidence-rag",
+      "type": "backend",
+      "label": "依據檢索與 Agent",
+      "sublabel": "版本篩選、四個唯讀工具",
+      "pos": [
+        292,
+        98
+      ],
+      "size": [
+        176,
+        84
+      ],
+      "sources": [
+        {
+          "path": "app/application/agentic_rag.py"
+        },
+        {
+          "path": "app/infrastructure/retrieval.py"
+        }
+      ]
+    },
+    {
+      "id": "bedrock-adapters",
+      "type": "backend",
+      "label": "Bedrock adapters",
+      "sublabel": "草稿、引用、工具呼叫",
+      "pos": [
+        568,
+        98
+      ],
+      "size": [
+        176,
+        84
+      ],
+      "sources": [
+        {
+          "path": "app/infrastructure/bedrock.py"
+        },
+        {
+          "path": "app/infrastructure/bedrock_rag.py"
+        },
+        {
+          "path": "app/infrastructure/bedrock_agent.py"
+        }
+      ]
+    },
+    {
+      "id": "aws-bedrock",
+      "type": "cloud",
+      "label": "Amazon Bedrock",
+      "sublabel": "Qwen3-32B · us-west-2",
+      "pos": [
+        904,
+        98
+      ],
+      "size": [
+        188,
+        84
+      ],
+      "sources": [
+        {
+          "path": "app/infrastructure/settings.py"
+        }
+      ]
+    },
+    {
+      "id": "local-ocr",
+      "type": "backend",
+      "label": "本機 CPU OCR",
+      "sublabel": "PaddleOCR 或 RapidOCR",
+      "pos": [
+        568,
+        599
+      ],
+      "size": [
+        176,
+        84
+      ],
+      "sources": [
+        {
+          "path": "app/infrastructure/paddle_pdf.py"
+        },
+        {
+          "path": "app/infrastructure/ocr_worker.py"
+        }
+      ]
+    },
+    {
+      "id": "review-repository",
+      "type": "backend",
+      "label": "Repository adapter",
+      "sublabel": "案件、基準、修訂快照",
+      "pos": [
+        292,
+        599
+      ],
+      "size": [
+        176,
+        84
+      ],
+      "sources": [
+        {
+          "path": "app/infrastructure/persistence.py"
+        }
+      ]
+    },
+    {
+      "id": "local-storage",
+      "type": "database",
+      "label": "SQLite 與原始 PDF",
+      "sublabel": "版本、OCR 文字、快取",
+      "pos": [
+        40,
+        599
+      ],
+      "size": [
+        176,
+        84
+      ],
+      "sources": [
+        {
+          "path": "app/infrastructure/persistence.py"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "應用核心｜同一服務主機（本機或 EC2）",
+      "wraps": [
+        "review-http",
+        "review-usecases",
+        "valuation-domain",
+        "review-export"
+      ],
+      "pad": 32
+    },
+    {
+      "kind": "region",
+      "label": "檢索與 AI 介接｜同一服務主機",
+      "wraps": [
+        "evidence-rag",
+        "bedrock-adapters"
+      ],
+      "pad": 32
+    },
+    {
+      "kind": "region",
+      "label": "OCR 與持久化｜同一服務主機",
+      "wraps": [
+        "local-ocr",
+        "review-repository",
+        "local-storage"
+      ],
+      "pad": 32
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-request",
+      "from": "review-browser",
+      "to": "review-http",
+      "label": "HTTP",
+      "variant": "emphasis"
+    },
+    {
+      "id": "http-usecase",
+      "from": "review-http",
+      "to": "review-usecases",
+      "label": "呼叫用例",
+      "variant": "emphasis"
+    },
+    {
+      "id": "usecase-calculate",
+      "from": "review-usecases",
+      "to": "valuation-domain",
+      "label": "審查計算",
+      "variant": "emphasis"
+    },
+    {
+      "id": "results-export",
+      "from": "valuation-domain",
+      "to": "review-export",
+      "label": "結果經用例傳遞",
+      "variant": "emphasis"
+    },
+    {
+      "id": "usecase-evidence",
+      "from": "review-usecases",
+      "to": "evidence-rag",
+      "label": "依據查詢",
+      "fromSide": "top",
+      "toSide": "right"
+    },
+    {
+      "id": "usecase-extraction",
+      "from": "review-usecases",
+      "to": "bedrock-adapters",
+      "label": "AI 抽取",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelDy": -90
+    },
+    {
+      "id": "rag-generation",
+      "from": "evidence-rag",
+      "to": "bedrock-adapters",
+      "label": "生成／工具選擇"
+    },
+    {
+      "id": "converse-call",
+      "from": "bedrock-adapters",
+      "to": "aws-bedrock",
+      "label": "確認可上雲後 Converse",
+      "variant": "security"
+    },
+    {
+      "id": "usecase-ocr",
+      "from": "review-usecases",
+      "to": "local-ocr",
+      "label": "PdfReader",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 90
+    },
+    {
+      "id": "usecase-save",
+      "from": "review-usecases",
+      "to": "review-repository",
+      "label": "保存／載入",
+      "fromSide": "bottom",
+      "toSide": "right"
+    },
+    {
+      "id": "repository-files",
+      "from": "review-repository",
+      "to": "local-storage",
+      "label": "交易與檔案"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "主流程",
+      "items": [
+        "OCR → 待確認草稿 → 人工核對 → 程式審查 → 保存與匯出",
+        "箭頭為呼叫或資料流；匯出由 application 編排，domain 不依賴 renderer。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "AI 與來源",
+      "items": [
+        "AI 預覽與依據查詢不修改案件；Agent 算術交給領域引擎。",
+        "Bedrock 共用快取、鎖與節流；來源不足時保留待確認。"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "目前範圍",
+      "items": [
+        "單一比較標的；住宅多標的整合與完整計算追溯仍待完成。",
+        "現行案件輸出以 Excel 為主；PDF 產製與 GraphRAG 未提供。"
+      ]
+    }
+  ]
+}
