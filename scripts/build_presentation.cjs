@@ -5,9 +5,9 @@ const out = path.resolve(__dirname, '../deliverables/presentation');
 const pptx = new pptxgen();
 pptx.imageSizingContain = (file,x,y,w,h) => { const size=require('image-size')(fs.readFileSync(file)); const scale=Math.min(w/size.width,h/size.height); const iw=size.width*scale, ih=size.height*scale; return {x:x+(w-iw)/2,y:y+(h-ih)/2,w:iw,h:ih}; };
 pptx.layout = 'LAYOUT_WIDE';
-pptx.author = '地衡 Landwise 專案';
+pptx.author = '沒有錯的地方 Landwise 專案';
 pptx.subject = '新北市政府 AI 黑客松｜地政局命題專案報告';
-pptx.title = '地衡 Landwise｜AI 輔助不動產估價案件審查';
+pptx.title = '沒有錯的地方 Landwise｜AI 輔助不動產估價案件審查';
 pptx.company = 'Landwise';
 pptx.lang = 'zh-TW';
 pptx.theme = { headFontFace: 'Microsoft JhengHei', bodyFontFace: 'Microsoft JhengHei', lang: 'zh-TW' };
@@ -15,17 +15,17 @@ const C = { bg:'F5F6F0', ink:'193F3D', green:'215C51', muted:'607873', gold:'B58
 const content=[];
 function text(s,t,x,y,w,h,size=22,color=C.ink,bold=false){s.addText(t,{x,y,w,h,fontFace:'Microsoft JhengHei',fontSize:size,color,bold,margin:0,breakLine:false,paraSpaceAfterPt:10, valign:'mid'});}
 function rect(s,x,y,w,h,fill=C.white){s.addShape(pptx.ShapeType.rect,{x,y,w,h,line:{color:fill},fill:{color:fill}});}
-function slide(title,kicker,notes,source){const s=pptx.addSlide();s.background={color:C.bg};rect(s,0,0,0.16,7.5,C.green);text(s,kicker.toUpperCase(),0.55,0.3,12,0.3,11,C.green,true);text(s,title,0.55,0.93,12.2,0.85,30,C.ink,true);text(s,'地衡 LANDWISE  /  新北市政府 AI 黑客松',0.55,7.03,7,0.22,10,C.muted);text(s,String(content.length+1).padStart(2,'0'),12.12,7.0,0.6,0.25,11,C.muted);if(source)text(s,'依據：'+source,0.55,6.61,12.1,0.27,10,C.muted);s.addNotes(notes+'\n\n資料依據：'+source);content.push({title,notes,source});return s;}
+function slide(title,kicker,notes,source){const s=pptx.addSlide();s.background={color:C.bg};rect(s,0,0,0.16,7.5,C.green);text(s,kicker.toUpperCase(),0.55,0.3,12,0.3,11,C.green,true);text(s,title,0.55,0.93,12.2,0.85,30,C.ink,true);text(s,'沒有錯的地方 LANDWISE  /  新北市政府 AI 黑客松',0.55,7.03,7,0.22,10,C.muted);text(s,String(content.length+1).padStart(2,'0'),12.12,7.0,0.6,0.25,11,C.muted);if(source)text(s,'依據：'+source,0.55,6.61,12.1,0.27,10,C.muted);s.addNotes(notes+'\n\n資料依據：'+source);content.push({title,notes,source});return s;}
 function cards(s,items,y=2.1){const w=12.1/items.length;items.forEach((a,i)=>{const x=0.55+i*w;rect(s,x,y,w-0.22,3.6);text(s,String(i+1).padStart(2,'0'),x+0.22,y+0.23,w-0.65,0.5,27,C.gold,true);text(s,a[0],x+0.22,y+1,w-0.65,0.75,23,C.ink,true);text(s,a[1],x+0.22,y+1.95,w-0.65,1.3,18,C.muted);});}
 function band(s,t){rect(s,0.55,5.96,12.1,0.46,C.green);text(s,t,0.75,6.0,11.7,0.35,16,C.white,true);}
-let s=slide('讓估價審查，有依據、可追溯','地衡 Landwise｜AI 輔助不動產估價案件審查','各位委員好，我們的專案叫地衡。地政局這次提出的問題，是估價書表很多，承辦人必須逐項比對條件、修正率和加總結果。地衡把這些重複檢查整理到同一個工作台，讓人員能直接看到哪裡需要確認、依據在哪裡，以及修改前後的紀錄。今天以金山區商業用地的範例，說明系統如何協助審查。這是目前可操作的本機原型，報告約十到十二分鐘。','命題文件 p.1；README.md');
+let s=slide('讓估價審查，有依據、可追溯','沒有錯的地方 Landwise｜AI 輔助不動產估價案件審查','各位委員好，我們的專案叫沒有錯的地方。地政局這次提出的問題，是估價書表很多，承辦人必須逐項比對條件、修正率和加總結果。沒有錯的地方把這些重複檢查整理到同一個工作台，讓人員能直接看到哪裡需要確認、依據在哪裡，以及修改前後的紀錄。今天以金山區商業用地的範例，說明系統如何協助審查。這是目前可操作的本機原型，報告約十到十二分鐘。','命題文件 p.1；README.md');
 text(s,'把多張書表的反覆核對\n變成一份有來源的問題清單',0.65,2.15,6.0,1.65,31,C.green,true);
 text(s,'市政府評審報告\n金山區商業用地案例｜可操作原型',0.65,4.4,5.5,1.0,19,C.muted);
 s.addImage({path:path.join(out,'assets/dashboard.png'),...pptx.imageSizingContain(path.join(out,'assets/dashboard.png'),7.0,2.0,5.65,3.95)});
 s=slide('這項命題，要解決什麼問題？','01 / 比賽目的','先用白話解釋比賽目的。估價師填完書表後，市府要檢查：條件有沒有看對，調整比例有沒有查對，數字有沒有算對及抄對。命題文件指出，人工跨表查核既花時間，也容易出現疏漏，而且不同案件可能適用不同基準。比賽期待用 AI 協助填寫流程，降低審查時間和錯誤率，並建立數位化的基礎。本報告聚焦工作區所附的地政局命題，並未推定整場黑客松的評分權重。','地政局命題文件 p.1');
 cards(s,[['減少反覆翻表','同一條件散落在不同書表\n承辦人需要來回核對'],['維持判讀一致','依案件適用的基準\n檢查等級與修正比例'],['找出計算與抄填差異','檢查細項加總\n以及兩張表是否填一致']]);band(s,'預期公共價值：減輕重複查核負擔，提升審查品質與一致性');
 s=slide('先認識估價：找參考，再調整差異','02 / 外行人也懂的概念','可以把它想成比較兩間條件不同的房子。即使有參考價格，也不能直接照抄，因為道路、形狀、周邊環境都可能不同。這個案例把要評估的土地稱為比準地，把拿來參考的土地稱為比較標的。修正率就是依範例基準，把條件差異換成調整比例。系統目前檢查一筆比較標的的書表與試算，沒有做到多筆標的的整合估價，也沒有替代估價師或機關的專業判斷。','app/models.py；app/engine.py；查估書表範本 表 4');
-cards(s,[['比準地','這次要評估的土地\n例如：金美段 489 地號'],['比較標的','用來參考的土地\n例如：溫泉段 218 地號'],['修正率','條件不同，依基準調整\n例如：道路寬度差異 +5%']]);band(s,'地衡的任務：檢查書表與計算是否一致，提供人員判斷依據');
+cards(s,[['比準地','這次要評估的土地\n例如：金美段 489 地號'],['比較標的','用來參考的土地\n例如：溫泉段 218 地號'],['修正率','條件不同，依基準調整\n例如：道路寬度差異 +5%']]);band(s,'沒有錯的地方的任務：檢查書表與計算是否一致，提供人員判斷依據');
 s=slide('三張表，串成一條查核路徑','03 / 資料來源','三張表各有不同角色。表一記錄地價區段的環境與條件，好比基本資料卡。表五之二把區域條件換成等級和修正率。表四則包含個別土地條件、區域修正率及價格試算。後端會串起這些資料，檢查從條件到修正率，以及從明細表到估價表的數字是否一致。區域因素是周邊區段的條件，個別因素是這一筆土地自己的條件，不能混在一起。表一只有能可靠抽取的部分會自動帶入。','app/extraction.py；app/rules.py；查估書表範本 pp.1–3');
 cards(s,[['表 1｜條件資料','區段環境、道路、設施\n回答「實際條件是什麼」'],['表 5-2｜區域調整','28 項區域因素\n檢查等級、比例與總數'],['表 4｜比較與試算','19 項個別因素\n串接區域調整與單價']]);band(s,'關鍵核對：表 5-2 的區域總修正數，是否正確抄入表 4？');
 s=slide('後端就像一條有檢查站的作業線','04 / 後端資料處理全貌','後端可以想成六個工作站。第一站收進 PDF 並保存原始文件。第二站讀取文字，整理成案件欄位。第三站由人員核對抽取結果。第四站選用案件的基準版本，依級距及矩陣重算。第五站把結果分成通過、疑似錯誤、待確認與資料不足。最後，人員修改後再審查，保存版本並匯出。每一步都能回到原始頁面，原 PDF 不會被修改。基準有疑點或資料不完整時，流程會保留待處理項目。','app/main.py；app/extraction.py；app/engine.py；app/store.py');
@@ -46,11 +46,11 @@ s=slide('目前做到哪裡？驗證到哪裡？','11 / 完成度與證據','目
 text(s,'47',0.75,2.1,3.4,1.2,68,C.green,true);text(s,'因素規則\n19 個別＋28 區域',0.75,3.6,3.4,1.1,23,C.muted);text(s,'49',4.7,2.1,3.4,1.2,68,C.green,true);text(s,'Python 測試通過\n本次執行結果',4.7,3.6,3.4,1.1,23,C.muted);text(s,'待實測',8.6,2.3,3.7,.9,36,C.gold,true);text(s,'工時改善與錯誤漏檢率\n真實 AI 抽取品質',8.6,3.6,3.7,1.1,23,C.muted);band(s,'範圍：提供版型、金山商業用地、單一比較標的；尚非正式上線系統');
 s=slide('先做小規模試辦，再量化成效','12 / 對市府的下一步建議','建議先選擇同一用地類別及版型的去識別案件，由承辦與估價專業人員確認適用基準，再進行小規模平行試辦。第一階段先整理專家認定的正確答案，第二階段比較純人工與系統輔助的結果。記錄每件總耗時、錯誤漏檢、誤報和待確認項目。總耗時要包含抽取後人工核對，才不會只量到電腦執行速度。若成效與安全條件符合需求，再擴充 OCR、其他版型及多人權限。這是建議路線，目前沒有已完成的效益數字。','依目前功能與限制提出的試辦建議；非既有實測成果');
 cards(s,[['先確認適用性','選定用地與書表版型\n由專業人員確認基準'],['再比較實際工作','同一批案件平行審查\n量工時、漏檢與誤報'],['最後擴充部署','其他版型與掃描辨識\n帳號、備份及正式流程']]);band(s,'建議市府提供：去識別測試案件、確認過的基準、承辦人員共同驗證');
-s=slide('把時間留給需要專業判斷的地方','13 / 結語','地衡希望帶來的改變，是讓承辦人少花時間在翻表、抄值與重複加總，多花時間處理資料疑義與特殊案件。我們已經把從文件進來、條件核對、規則檢查到修正留存的流程做成可操作原型。下一步希望透過市府的小規模試辦，確認真實文件上的品質與工時效益。每一個警示都應有依據，每一個未決事項都應被看見，每一次修正都能回查。謝謝各位委員。','地政局命題文件 p.1；本專案實作');
-text(s,'少一些翻表與重算\n多一些有依據的判斷',0.75,2.25,11.8,1.7,40,C.green,true);text(s,'已完成可操作流程 → 與承辦共同驗證 → 用實測決定擴充',0.75,4.75,11.8,0.8,23,C.muted);band(s,'地衡 LANDWISE｜文件有來源、判定有依據、修正有紀錄');
+s=slide('把時間留給需要專業判斷的地方','13 / 結語','沒有錯的地方希望帶來的改變，是讓承辦人少花時間在翻表、抄值與重複加總，多花時間處理資料疑義與特殊案件。我們已經把從文件進來、條件核對、規則檢查到修正留存的流程做成可操作原型。下一步希望透過市府的小規模試辦，確認真實文件上的品質與工時效益。每一個警示都應有依據，每一個未決事項都應被看見，每一次修正都能回查。謝謝各位委員。','地政局命題文件 p.1；本專案實作');
+text(s,'少一些翻表與重算\n多一些有依據的判斷',0.75,2.25,11.8,1.7,40,C.green,true);text(s,'已完成可操作流程 → 與承辦共同驗證 → 用實測決定擴充',0.75,4.75,11.8,0.8,23,C.muted);band(s,'沒有錯的地方 LANDWISE｜文件有來源、判定有依據、修正有紀錄');
 s=slide('備用：委員可能追問的四個問題','附錄 / 問答','若委員問沒有 AI 是否能用：可以，現有版型抽取與規則檢核不依賴模型，本機 AI 是可選助手。若問能否套用全市所有估價案件：目前不能，原型限定範例地區、用地、版型與單一比較標的，需新增並驗證基準和解析器。若問資料會不會送到雲端：目前程式的 AI 路徑固定呼叫本機 Ollama，未內建雲端模型 API；正式部署仍須檢視完整環境和權限。若問省多少時間：目前未量測，須以包含人工核對的全流程試辦回答。補充：手冊為提供的民國一〇四年三月版，正式使用應確認適用文件版本。這份報告描述程式行為，沒有認證其法規適用性。','README.md；app/extraction.py；app/engine.py；app/store.py');
 [['一定要 AI 嗎？','現有流程可獨立運作；本機 AI 為選配。'],['能用在所有案件嗎？','目前限範例情境；多標的、其他版型與 OCR 待擴充。'],['資料儲存在哪裡？','本機 SQLite 與 PDF 檔案；AI 路徑使用本機 Ollama。'],['已經省下多少時間？','尚未實測；建議以完整人工核對流程進行對照試辦。']].forEach((a,i)=>{let y=2.0+i*1.05;text(s,a[0],.7,y,3.2,.6,22,C.green,true);text(s,a[1],4.0,y,8.4,.65,20,C.ink);});
 fs.mkdirSync(out,{recursive:true});
-fs.writeFileSync(path.join(out,'逐頁講稿.md'),'# 地衡 Landwise｜逐頁講稿\n\n主簡報第 1–14 頁，建議約 10–12 分鐘；第 15 頁供問答備用。每頁講稿亦已寫入 PowerPoint 備忘錄。\n\n'+content.map((p,i)=>`## ${i+1}. ${p.title}\n\n${p.notes}\n\n依據：${p.source}\n`).join('\n'),'utf8');
-pptx.writeFile({fileName:path.join(out,'地衡_AI估價審查_市府評審簡報.pptx')});
+fs.writeFileSync(path.join(out,'逐頁講稿.md'),'# 沒有錯的地方 Landwise｜逐頁講稿\n\n主簡報第 1–14 頁，建議約 10–12 分鐘；第 15 頁供問答備用。每頁講稿亦已寫入 PowerPoint 備忘錄。\n\n'+content.map((p,i)=>`## ${i+1}. ${p.title}\n\n${p.notes}\n\n依據：${p.source}\n`).join('\n'),'utf8');
+pptx.writeFile({fileName:path.join(out,'沒有錯的地方_AI估價審查_市府評審簡報.pptx')});
 

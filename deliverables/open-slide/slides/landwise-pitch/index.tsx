@@ -24,7 +24,7 @@ function Footer({ dark = false, source }: { dark?: boolean; source?: string }) {
   const { current, total } = useSlidePageNumber();
   return (
     <footer style={{ position: 'absolute', left: 120, right: 120, bottom: 46, borderTop: `1px solid ${dark ? '#526D5F' : line}`, paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 22, color: dark ? pale : muted }}>
-      <span>地衡 LANDWISE{source ? `　／　${source}` : '　／　AI 輔助估價審查'}</span>
+      <span>沒有錯的地方 LANDWISE{source ? `　／　${source}` : '　／　AI 輔助估價審查'}</span>
       <span style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 3 }}>{String(current).padStart(2, '0')} / {String(total).padStart(2, '0')}</span>
     </footer>
   );
@@ -79,7 +79,7 @@ const Cover: Page = () => <Canvas dark>
   <Placed top={116}><div style={{ fontSize: 26, letterSpacing: 5, color: pale }}>新北市政府 AI 黑客松　／　競賽提案</div></Placed>
   <Placed top={290}>
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 48 }}>
-      <h1 style={{ fontSize: 'var(--osd-size-hero)', lineHeight: 1.08, margin: 0, fontWeight: 700, letterSpacing: 8 }}>地衡</h1>
+      <h1 style={{ fontSize: 'var(--osd-size-hero)', lineHeight: 1.08, margin: 0, fontWeight: 700, letterSpacing: 8 }}>沒有錯的地方</h1>
       <span style={{ fontFamily: 'Georgia, serif', fontSize: 72, color: pale, letterSpacing: 5 }}>LANDWISE</span>
     </div>
     <p style={{ fontSize: 70, margin: '55px 0 0', lineHeight: 1.3, fontWeight: 500 }}>讓估價審查，有依據、可追溯。</p>
@@ -200,7 +200,7 @@ const Closing: Page = () => <Canvas dark>
 </Canvas>;
 
 export const notes = [
-  '建議 45 秒。各位委員好，我們的作品是地衡 Landwise，一套 AI 輔助估價審查工作台。它將文件、基準與計算核對放在同一個流程，讓承辦人員能看出差異、回到來源並保留修訂。今天介紹目前可操作的 MVP，而不是宣稱已自動完成所有估價案件。整份簡報約 8–10 分鐘。依據：README.md、docs/architecture.md。',
+  '建議 45 秒。各位委員好，我們的作品是沒有錯的地方 Landwise，一套 AI 輔助估價審查工作台。它將文件、基準與計算核對放在同一個流程，讓承辦人員能看出差異、回到來源並保留修訂。今天介紹目前可操作的 MVP，而不是宣稱已自動完成所有估價案件。整份簡報約 8–10 分鐘。依據：README.md、docs/architecture.md。',
   '建議 50 秒。審查涉及三種反覆工作：先看土地條件，再查適用基準，最後核對各表數字是否一致。即使加總算對，也可能查錯級距或引用錯誤版本。找到差異後，承辦仍要翻回來源確認理由。這是本專案要減輕的重複核對工作；目前沒有人工耗時基線，不在此宣稱任何節省比例。依據：docs/TODO.md 的命題與差距、README.md。',
   '建議 65 秒。先上傳同類版型的評價基準表，人工核對期間及矩陣方向後，保存不可覆寫版本。選定基準再上傳題目，PDF 經本機 PaddleOCR 或 RapidOCR CPU 辨識，保留文字及座標；若啟用 Bedrock，可以另外請 AI 整理欄位草稿。人員核對後，規則引擎查級距、矩陣、加總與跨表一致性，再保存與匯出。目前主要輸出為完整審查 Excel，另有 CSV、JSON、HTML 與固定版型分表。案件 PDF 產製已移除，不能宣稱提供後端 PDF 報告。依據：README.md、docs/architecture.md、docs/form-exports.md。',
   '建議 60 秒。三者分工是設計核心。Bedrock 做欄位草稿及引用說明；Agent 可以呼叫白名單中的唯讀工具，但實際查表與算術由 domain 的確定性程式執行。計算內部使用 Decimal，現行部分資料模型仍有 float，所以不宣稱已完成全資料模型的 Decimal 遷移。人員負責適用基準、原文與特殊情況。AI 草稿預覽不修改案件，套用後仍需確認；依據查詢也不寫入案件。模型最後說明失敗時，已完成的引擎審查仍會保留。依據：docs/architecture.md、docs/agentic-rag.md、docs/TODO.md。',
@@ -219,7 +219,7 @@ export const transition: SlideTransition = {
 };
 
 export const meta: SlideMeta = {
-  title: '地衡 Landwise｜讓估價審查，有依據、可追溯',
+  title: '沒有錯的地方 Landwise｜讓估價審查，有依據、可追溯',
   createdAt: '2026-09-13T01:21:34.302Z',
 };
 

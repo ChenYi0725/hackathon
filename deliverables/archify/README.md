@@ -1,4 +1,4 @@
-# 地衡架構流程圖
+# 沒有錯的地方架構流程圖
 
 直接以瀏覽器開啟 [互動 HTML](landwise-architecture.html)，可切換深淺色、放大、追蹤關係及使用 Export 匯出。圖中 SRC 可查看已固定版本的程式來源。圖中文字為繁體中文；archify 未提供繁中 locale，固定操作介面與 HTML lang 沿用英文。
 
